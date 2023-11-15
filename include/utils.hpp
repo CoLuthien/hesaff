@@ -33,7 +33,4 @@ bool IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, s
 HA_API
 bool IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col);
 
-HA_API
-void solveLinear3x3(float* A, float* b);
-
 } // namespace utils

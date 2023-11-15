@@ -5,6 +5,15 @@
 
 namespace ha
 {
+
+template <typename T>
+T
+at(cv::Mat const& Img, int const Row, int const Col)
+{
+    auto const* Ptr = (float const*)(Img.data);
+
+    return (Ptr + Row * Img.step.p[0])[Col];
+}
 int
 getHessianPointType(float* ptr, float value)
 {
@@ -141,22 +150,22 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
 
     auto&& calculate_jacobian = [&Prev, &Current, &Next](
                                     int const r, int const c, cv::Mat& Result) {
-        float dxx = Current.at<float>(r, c - 1) - 2.0f * Current.at<float>(r, c) +
-                    Current.at<float>(r, c + 1);
+        float dxx = at<float>(Current, r, c - 1) - 2.0f * at<float>(Current, r, c) +
+                    at<float>(Current, r, c + 1);
 
-        float dyy = Current.at<float>(r - 1, c) - 2.0f * Current.at<float>(r, c) +
-                    Current.at<float>(r + 1, c);
+        float dyy = at<float>(Current, r - 1, c) - 2.0f * at<float>(Current, r, c) +
+                    at<float>(Current, r + 1, c);
 
         float dss = Prev.at<float>(r, c) - 2.0f * Current.at<float>(r, c) + Next.at<float>(r, c);
 
-        float dxy = 0.25f * (Current.at<float>(r + 1, c + 1) - Current.at<float>(r + 1, c - 1) -
-                             Current.at<float>(r - 1, c + 1) + Current.at<float>(r - 1, c - 1));
+        float dxy = 0.25f * (at<float>(Current, r + 1, c + 1) - at<float>(Current, r + 1, c - 1) -
+                             at<float>(Current, r - 1, c + 1) + at<float>(Current, r - 1, c - 1));
 
-        float dxs = 0.25f * (Next.at<float>(r, c + 1) - Next.at<float>(r, c - 1) -
-                             Prev.at<float>(r, c + 1) + Prev.at<float>(r, c - 1));
+        float dxs = 0.25f * (at<float>(Next, r, c + 1) - at<float>(Next, r, c - 1) -
+                             at<float>(Prev, r, c + 1) + at<float>(Prev, r, c - 1));
 
-        float dys = 0.25f * (Next.at<float>(r + 1, c) - Next.at<float>(r - 1, c) -
-                             Prev.at<float>(r + 1, c) + Prev.at<float>(r - 1, c));
+        float dys = 0.25f * (at<float>(Next, r + 1, c) - at<float>(Next, r - 1, c) -
+                             at<float>(Prev, r + 1, c) + at<float>(Prev, r - 1, c));
 
         // clang-format off
         auto&& vec = std::array{
