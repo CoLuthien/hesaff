@@ -24,6 +24,7 @@ public:
 
 public:
     cv::Mat const& operator[](std::size_t Idx) const { return m_layers[Idx]; }
+    cv::Mat const& GetLayerBlur(std::size_t Idx) const { return m_blurs[Idx]; }
     float const    GetLayerSigma(std::size_t Idx) const { return m_sigmas[Idx]; }
 
 public:

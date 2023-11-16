@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ha_export.hpp"
+#include "Keypoints.hpp"
 #include "HessianPyramid.hpp"
 #include <opencv2/opencv.hpp>
 #include <unordered_set>
@@ -27,18 +28,6 @@ public: // calculated from user input
     float const negativeThreshold;
 };
 
-struct HA_API CandidatePoint
-{
-public:
-    float x, y, s;
-    float response;
-    float pixel_distance;
-    int   type;
-
-public:
-    int octave_idx, layer_idx;
-};
-
 class HA_API HessianDetector
 {
 public:
@@ -58,7 +47,7 @@ public:
                     float const threshold);
 
 public:
-    std::vector<CandidatePoint> DetectCandidates(cv::Mat const& Image);
+    std::vector<CandidatePoint> DetectCandidates(HessianResponsePyramid const& Pyr);
 
 private:
     std::vector<CandidatePoint> FindOctaveCandidates(HessianResponseOctave const& Octave);

@@ -3,17 +3,42 @@
 #include "HessianDetector.hpp"
 #include "Utils.hpp"
 
-namespace ha
+namespace
 {
-
 template <typename T>
 T
 at(cv::Mat const& Img, int const Row, int const Col)
 {
-    auto const* Ptr = (float const*)(Img.data);
-
-    return (Ptr + Row * Img.step.p[0])[Col];
+    auto const* Ptr = Img.data;
+    return ((T*)(Ptr + Img.step[0] * Row))[Col];
 }
+
+int
+GetHessianPointType(float const* ptr, float value)
+{
+    if (value < 0)
+    {
+        return ha::HessianDetector::HESSIAN_SADDLE;
+    }
+    else
+    {
+        // at this point we know that 2x2 determinant is positive
+        // so only check the remaining 1x1 subdeterminant
+        float Lxx = (ptr[-1] - 2 * ptr[0] + ptr[1]);
+        if (Lxx < 0)
+        {
+            return ha::HessianDetector::HESSIAN_DARK;
+        }
+        else
+        {
+            return ha::HessianDetector::HESSIAN_BRIGHT;
+        }
+    }
+}
+} // namespace
+namespace ha
+{
+
 int
 getHessianPointType(float* ptr, float value)
 {
@@ -61,6 +86,10 @@ HessianDetector::FindOctaveCandidates(HessianResponseOctave const& Octave)
     for (int LayerIdx = 1; LayerIdx < param_pyr.numLayers - 1; ++LayerIdx)
     {
         auto&& Candidates = FindLayerCandidates(Octave, LayerIdx, VisitMap);
+        for (auto& Point : Candidates)
+        {
+            Point.layer_idx = LayerIdx;
+        }
         Result.insert(Result.end(), Candidates.begin(), Candidates.end());
     }
 
@@ -115,6 +144,9 @@ HessianDetector::FindLayerCandidates(HessianResponseOctave const&   Octave,
                                       Octave.GetLayerSigma(LayerIdx),
                                       Octave.PixelDistance))
                 {
+                    auto const* Blur =
+                        Octave.GetLayerBlur(LayerIdx).ptr<float>(Point.row) + Point.col;
+                    Point.type = GetHessianPointType(Blur, Point.response);
                     Result.emplace_back(Point);
                 }
             }
@@ -179,13 +211,9 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
 
     auto&& calculate_gradient =
         [&Prev, &Current, &Next](int const r, int const c, cv::Mat& Result) {
-            float dx = 0.5f * (Current.at<float>(r, c + 1) - Current.at<float>(r, c - 1));
-            float dy = 0.5f * (Current.at<float>(r + 1, c) - Current.at<float>(r - 1, c));
-            float ds = 0.5f * (Next.at<float>(r, c) - Prev.at<float>(r, c));
-
-            dx *= -1;
-            dy *= -1;
-            ds *= -1;
+            float dx = -0.5f * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
+            float dy = -0.5f * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
+            float ds = -0.5f * (at<float>(Next, r, c) - at<float>(Prev, r, c));
 
             auto&& arr = std::array{dx, dy, ds};
 
@@ -193,15 +221,15 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         };
 
     {
-        float dxx = Current.at<float>(Row, Col - 1) - 2.0f * Current.at<float>(Row, Col) +
-                    Current.at<float>(Row, Col + 1);
+        float dxx = at<float>(Current, Row, Col - 1) - 2.0f * at<float>(Current, Row, Col) +
+                    at<float>(Current, Row, Col + 1);
 
-        float dyy = Current.at<float>(Row - 1, Col) - 2.0f * Current.at<float>(Row, Col) +
-                    Current.at<float>(Row + 1, Col);
+        float dyy = at<float>(Current, Row - 1, Col) - 2.0f * at<float>(Current, Row, Col) +
+                    at<float>(Current, Row + 1, Col);
 
         float dxy =
-            0.25f * (Current.at<float>(Row + 1, Col + 1) - Current.at<float>(Row + 1, Col - 1) -
-                     Current.at<float>(Row - 1, Col + 1) + Current.at<float>(Row - 1, Col - 1));
+            0.25f * (at<float>(Current, Row + 1, Col + 1) - at<float>(Current, Row + 1, Col - 1) -
+                     at<float>(Current, Row - 1, Col + 1) + at<float>(Current, Row - 1, Col - 1));
 
         float edgeScore = (dxx + dyy) * (dxx + dyy) / (dxx * dyy - dxy * dxy);
         if (edgeScore > param_detect.edgeScoreThreshold || edgeScore < 0)
@@ -310,21 +338,24 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     Point.s              = pixelDistance * s;
     Point.response       = Response;
     Point.pixel_distance = pixelDistance;
+    Point.row            = next_row;
+    Point.col            = next_col;
 
     return true;
 }
 
 std::vector<CandidatePoint>
-HessianDetector::DetectCandidates(cv::Mat const& Image)
+HessianDetector::DetectCandidates(HessianResponsePyramid const& Pyr)
 {
-    HessianResponsePyramid Pyr(
-        Image, param_pyr.numOctaves, param_pyr.numLayers, param_pyr.initialSigma);
-
     std::vector<CandidatePoint> Result;
-
-    for (int Octave = 0; Octave != param_pyr.numOctaves; ++Octave)
+    for (int Octave = 0; Octave < param_pyr.numOctaves; ++Octave)
     {
         auto&& Candidates = FindOctaveCandidates(Pyr[Octave]);
+
+        for (auto& Point : Candidates)
+        {
+            Point.octave_idx = Octave;
+        }
         Result.insert(Result.end(), Candidates.begin(), Candidates.end());
     }
 

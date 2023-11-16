@@ -33,4 +33,15 @@ bool IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, s
 HA_API
 bool IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col);
 
+HA_API
+void SampleDeformAndInterpolate(cv::Mat const&  Img,
+                                cv::Point const Center,
+                                float           DeformMatrix[4],
+                                cv::Mat&        Result);
+HA_API
+void ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat Grady);
+
+HA_API
+cv::Mat ComputeGaussianMask(std::size_t const size);
+
 } // namespace utils

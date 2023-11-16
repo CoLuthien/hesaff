@@ -14,19 +14,15 @@ HessianResponseOctave::HessianResponseOctave(cv::Mat const& Image,
     auto       CurSigma = InitialSigma;
     auto const Step     = SigmaStep;
 
-    auto&&  Current  = utils::HessianResponse(Image, CurSigma);
-    cv::Mat NextBlur = utils::GaussianBlurRelativeKernel(Image, CurSigma);
-
-    m_layers.emplace_back(std::move(Current));
-
-    for (int Layer = 1; Layer < nLayers; ++Layer)
+    for (int Layer = 0; Layer < nLayers; ++Layer)
     {
         // compute the increase necessary for the next level and compute the next level
-        NextBlur = utils::GaussianBlurRelativeKernel(NextBlur, CurSigma);
-        Current  = utils::HessianResponse(NextBlur, CurSigma);
+        auto&& NextBlur = utils::GaussianBlurRelativeKernel(Image, CurSigma);
+        auto&& Current  = utils::HessianResponse(NextBlur, CurSigma);
+
         m_sigmas.emplace_back(CurSigma);
         m_layers.emplace_back(std::move(Current));
-        m_blurs.emplace_back(NextBlur);
+        m_blurs.emplace_back(std::move(NextBlur));
         CurSigma *= Step;
     }
 }
