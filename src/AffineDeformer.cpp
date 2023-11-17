@@ -8,6 +8,8 @@
 namespace
 {
 
+
+// 이게 뭔지 해독해서 풀기
 void
 MatrixSqrt(float& a, float& b, float& c, float& l1, float& l2)
 {
@@ -59,6 +61,16 @@ namespace ha
 AffineDeformer::AffineDeformer() : GaussisanMask(utils::ComputeGaussianMask(params.smmWindowSize))
 {
 }
+
+AffineDeformer::AffineDeformer(AffineDeformerParams InParams)
+    : AffineDeformer(InParams.maxIterations,
+                     InParams.smmWindowSize,
+                     InParams.patchSize,
+                     InParams.convergenceThreshold,
+                     InParams.initialSigma,
+                     InParams.mrSize)
+{
+}
 AffineDeformer::AffineDeformer(int const   NIteration,
                                int const   SmmWindowSize,
                                int const   PatchSize,
@@ -78,17 +90,17 @@ AffineDeformer::AffineDeformer(int const   NIteration,
 bool
 AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
                                       CandidatePoint const&         Point,
-                                      cv::Mat&                      AffineDeformation)
+                                      cv::Mat&                      AffineDeformation) const
 {
 
-    auto const& Img = Pyr[Point.octave_idx].GetLayerBlur(Point.layer_idx);
+    auto const& Img = Pyr[Point.octave_idx].GetLayerBlur(Point.layer_idx - 1);
 
     float u11 = 1.0f, u12 = 0.0f, u21 = 0.0f, u22 = 1.0f, eig_1 = 1.0f, eig_2 = 1.0f;
 
     float deform_matrix[4] = {1, 0, 0, 1};
 
-    int const height = Point.height_position;
-    int const width  = Point.width_position;
+    int const width  = Point.x_pos;
+    int const height = Point.y_pos;
 
     float const ratio      = Point.s / (params.initialSigma * Point.pixel_distance);
     int const   maskPixels = params.smmWindowSize * params.smmWindowSize;
@@ -101,7 +113,8 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
 
     for (int Iter = 0; Iter < params.maxIterations; ++Iter)
     {
-        utils::SampleDeformAndInterpolate(Img, {width, height}, deform_matrix, Sample);
+        float TempDeform[4] = {u11 * ratio, u12 * ratio, u21 * ratio, u22 * ratio};
+        utils::SampleDeformAndInterpolate(Img, {width, height}, TempDeform, Sample);
         float        a = 0, b = 0, c = 0;
         float const* MaskPtr  = GaussisanMask.ptr<float>(0);
         float*       GradxPtr = grad_x.ptr<float>(0);
@@ -166,11 +179,13 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
 }
 
 bool
-AffineDeformer::ExtractAndNormalizeAffinePatch(cv::Mat const&        Img,
-                                               CandidatePoint const& Point,
-                                               cv::Mat&              Patch)
+AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr,
+                                               CandidatePoint const&         Point,
+                                               cv::Mat&                      Patch) const
 {
-    auto const det = cv::determinant(Point.AffineDeformation);
+
+    auto const& Img = Pyr[Point.octave_idx].GetLayerBlur(Point.layer_idx);
+    auto const  det = cv::determinant(Point.AffineDeformation);
     assert((det - 1) < 1e-2);
     // half patch size in pixels of image
     float mrScale = std::ceil(Point.s * params.mrSize);
@@ -184,15 +199,24 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(cv::Mat const&        Img,
     int const SampleWidth  = patchImageSize;
     int const SampleHeight = patchImageSize;
 
-    bool TouchBorder = utils::IsSampleTouchBorder({ImgWidth, ImgHeight},
-                                                  {SampleWidth, SampleHeight},
-                                                  {Point.x_pos, Point.y_pos},
-                                                  Point.AffineDeformation.ptr<float>());
-
-    // is patch touching boundary? if yes, ignore this feature
-    if (TouchBorder)
     {
-        return false;
+        float Deformation[4];
+
+        std::memcpy(Deformation, Point.AffineDeformation.ptr<float>(), sizeof(float) * 4);
+        Deformation[0] *= imageToPatchScale;
+        Deformation[1] *= imageToPatchScale;
+        Deformation[2] *= imageToPatchScale;
+        Deformation[3] *= imageToPatchScale;
+        bool TouchBorder = utils::IsSampleTouchBorder({ImgWidth, ImgHeight},
+                                                      {SampleWidth, SampleHeight},
+                                                      {Point.x_pos, Point.y_pos},
+                                                      Deformation);
+
+        // is patch touching boundary? if yes, ignore this feature
+        if (TouchBorder)
+        {
+            return false;
+        }
     }
 
     cv::Point const Center{Point.x_pos, Point.y_pos};
@@ -204,13 +228,18 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(cv::Mat const&        Img,
         cv::Mat     Sample(patchImageSize, patchImageSize, CV_32F);
         auto const* DeformMatrix = Point.AffineDeformation.ptr<float>(0);
 
-        utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Sample);
-        TouchBorder = utils::IsSampleTouchBorder(
-            {ImgWidth, ImgHeight}, {patchImageSize, patchImageSize}, Center, DeformMatrix);
+        auto TouchBorder = utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Sample);
         if (TouchBorder == false)
         {
-            Sample = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
-            utils::SampleDeformAndInterpolate(Sample, Center, DeformMatrix, Patch);
+            cv::Mat Result(patchImageSize, patchImageSize, CV_32F);
+
+            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
+            float const Deform[4] = {imageToPatchScale, 0, 0, imageToPatchScale};
+
+            TouchBorder = utils::SampleDeformAndInterpolate(
+                Blur, {patchImageSize / 2, patchImageSize / 2}, Deform, Result);
+
+            Result.copyTo(Patch);
 
             return true;
         }
@@ -218,8 +247,6 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(cv::Mat const&        Img,
         {
             return false;
         }
-
-        assert(TouchBorder == false);
     }
     else
     {
@@ -230,9 +257,11 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(cv::Mat const&        Img,
         DeformMatrix[2] *= imageToPatchScale;
         DeformMatrix[3] *= imageToPatchScale;
 
-        utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Patch);
+        cv::Mat Result(patchImageSize, patchImageSize, CV_32F);
+        utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Result);
+        Result.copyTo(Patch);
     }
-    return true;
+    return false;
 }
 
 } // namespace ha

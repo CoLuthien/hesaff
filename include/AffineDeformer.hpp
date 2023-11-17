@@ -33,6 +33,7 @@ class HA_API AffineDeformer
 {
 public:
     AffineDeformer();
+    AffineDeformer(AffineDeformerParams InParams);
     AffineDeformer(int const   NIteration,
                    int const   SmmWindowSize,
                    int const   PatchSize,
@@ -43,11 +44,11 @@ public:
 public:
     bool FindAffineDeformation(HessianResponsePyramid const& Pyr,
                                CandidatePoint const&         Point,
-                               cv::Mat&                      AffineDeformation);
+                               cv::Mat&                      AffineDeformation) const;
 
-    bool ExtractAndNormalizeAffinePatch(cv::Mat const&        Img,
-                                        CandidatePoint const& Point,
-                                        cv::Mat&              Patch);
+    bool ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr,
+                                        CandidatePoint const&         Point,
+                                        cv::Mat&                      Patch) const;
 
 private:
     AffineDeformerParams const params;

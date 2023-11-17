@@ -10,6 +10,9 @@ namespace ha
 struct HA_API CandidatePoint
 {
 public:
+    bool IsValid = false;
+
+public:
     float x, y, s;
     float response;
     float pixel_distance;

@@ -4,6 +4,11 @@
 
 namespace ha
 {
+HessianResponsePyramid::HessianResponsePyramid(cv::Mat const&               Image,
+                                               HessianResponsePyramidParams InParams)
+    : HessianResponsePyramid(Image, InParams.numOctaves, InParams.numLayers, InParams.initialSigma)
+{
+}
 HessianResponseOctave::HessianResponseOctave(cv::Mat const& Image,
                                              int const      nLayers,
                                              float const    InPixelDist,

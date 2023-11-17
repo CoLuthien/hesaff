@@ -57,7 +57,7 @@ IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
         {
             if (row[c] > Value)
             {
-                result = false;
+                return false;
             }
         }
     }
@@ -76,7 +76,7 @@ IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
         {
             if (row[c] < Value)
             {
-                result = false;
+                return false;
             }
         }
     }
@@ -84,7 +84,7 @@ IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
     return result;
 }
 
-void
+bool
 SampleDeformAndInterpolate(cv::Mat const&  Img,
                            cv::Point const Center,
                            float const     DeformMatrix[4],
@@ -99,10 +99,11 @@ SampleDeformAndInterpolate(cv::Mat const&  Img,
     float const center_row = Center.x;
     float const center_col = Center.y;
 
-    float a11 = DeformMatrix[0], a12 = DeformMatrix[1], a21 = DeformMatrix[2],
-          a22 = DeformMatrix[3];
+    float const a11 = DeformMatrix[0], a12 = DeformMatrix[1], a21 = DeformMatrix[2],
+                a22 = DeformMatrix[3];
 
-    float* out = Result.ptr<float>(0);
+    float* out           = Result.ptr<float>(0);
+    bool   BoundaryTouch = false;
     for (int Row = -OutputHeight; Row <= OutputHeight; ++Row)
     {
         float const rx = center_row + Row * a12;
@@ -114,8 +115,8 @@ SampleDeformAndInterpolate(cv::Mat const&  Img,
             int const x          = (int)std::floor(row_weight);
             int const y          = (int)std::floor(col_weight);
 
-            int clamed_x = std::clamp(x, 0, SampleWidth - 1);
-            int clamed_y = std::clamp(y, 0, SampleHeight - 1);
+            int clamed_x = std::clamp(x, 0, SampleWidth - 2);
+            int clamed_y = std::clamp(y, 0, SampleHeight - 2);
 
             if (clamed_x == x && clamed_y == y)
             {
@@ -136,18 +137,19 @@ SampleDeformAndInterpolate(cv::Mat const&  Img,
             {
                 *out = 0;
                 out++;
+                BoundaryTouch = true;
             }
         }
     }
 
-    return;
+    return BoundaryTouch;
 }
 
 void
 ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat Grady)
 {
-    cv::Sobel(Img, Gradx, Img.depth(), 1, 0);
-    cv::Sobel(Img, Grady, Img.depth(), 0, 1);
+    cv::Scharr(Img, Gradx, Img.depth(), 1, 0);
+    cv::Scharr(Img, Grady, Img.depth(), 0, 1);
 }
 
 cv::Mat
@@ -213,8 +215,8 @@ IsSampleTouchBorder(cv::Size const  ImgSize,
                     cv::Point const Center,
                     float const     DeformMatrix[4])
 {
-    const float width      = static_cast<float>(ImgSize.width - 2);
-    const float height     = static_cast<float>(ImgSize.height - 2);
+    const float width      = static_cast<float>(ImgSize.width);
+    const float height     = static_cast<float>(ImgSize.height);
     const float halfWidth  = static_cast<float>(SampleSize.width >> 1);
     const float halfHeight = static_cast<float>(SampleSize.height >> 1);
 

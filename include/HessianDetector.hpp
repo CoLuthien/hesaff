@@ -12,9 +12,9 @@ namespace ha
 struct HA_API HessianDetectorParams
 {
 public:
-    HessianDetectorParams(int const   inBorderSize,
-                          float const inThreshold,
-                          float const inEdgeEigenValueRatio);
+    HessianDetectorParams(int const   inBorderSize          = 3,
+                          float const inThreshold           = 5.3,
+                          float const inEdgeEigenValueRatio = 10);
 
 public: // input from user
     float const Threshold;
@@ -39,20 +39,18 @@ public:
     };
 
 public:
-    HessianDetector(int const   nOctaves,
-                    int const   nLayers,
-                    int const   nBorders,
-                    float const startSigma,
-                    float const edgeEigvalRatio,
-                    float const threshold);
+    HessianDetector(HessianDetectorParams Params);
+    HessianDetector(int const nBorders, float const edgeEigvalRatio, float const threshold);
 
 public:
     std::vector<CandidatePoint> DetectCandidates(HessianResponsePyramid const& Pyr);
 
 private:
-    std::vector<CandidatePoint> FindOctaveCandidates(HessianResponseOctave const& Octave);
-    std::vector<CandidatePoint> FindLayerCandidates(HessianResponseOctave const&   Octave,
-                                                    int const                      LayerIdx,
+    std::vector<CandidatePoint> FindOctaveCandidates(HessianResponsePyramid const& Pyr,
+                                                     std::size_t const             Octave);
+    std::vector<CandidatePoint> FindLayerCandidates(HessianResponsePyramid const&  Pyr,
+                                                    std::size_t const              Octave,
+                                                    std::size_t const              LayerIdx,
                                                     std::unordered_set<cv::Point>& VisitMap);
 
     bool LocalizeCandidate(CandidatePoint&                Point,
@@ -60,14 +58,14 @@ private:
                            cv::Mat const&                 Prev,
                            cv::Mat const&                 Current,
                            cv::Mat const&                 Next,
-                           int const                      Row,
-                           int const                      Col,
+                           int const                      PositionY,
+                           int const                      PositionX,
                            float const                    CurSigma,
-                           float const                    pixelDistance);
+                           float const                    pixelDistance,
+                           int const                      numLayers);
 
 private:
-    HessianResponsePyramidParams const param_pyr;
-    HessianDetectorParams const        param_detect;
+    HessianDetectorParams const param_detect;
 };
 
 } // namespace ha
