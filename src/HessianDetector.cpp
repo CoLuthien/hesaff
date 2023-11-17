@@ -145,7 +145,7 @@ HessianDetector::FindLayerCandidates(HessianResponseOctave const&   Octave,
                                       Octave.PixelDistance))
                 {
                     auto const* Blur =
-                        Octave.GetLayerBlur(LayerIdx).ptr<float>(Point.row) + Point.col;
+                        Octave.GetLayerBlur(LayerIdx).ptr<float>(Point.y_pos) + Point.x_pos;
                     Point.type = GetHessianPointType(Blur, Point.response);
                     Result.emplace_back(Point);
                 }
@@ -258,9 +258,9 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         {
             return false;
         }
-        auto const value = Current.at<float>(r, c) + 0.5 * (gradient_ptr[0] * solution_ptr[0] +
-                                                            gradient_ptr[1] * solution_ptr[1] +
-                                                            gradient_ptr[2] * solution_ptr[2]);
+        auto const value = at<float>(Current, r, c) + 0.5 * (gradient_ptr[0] * solution_ptr[0] +
+                                                             gradient_ptr[1] * solution_ptr[1] +
+                                                             gradient_ptr[2] * solution_ptr[2]);
 
         Solution.copyTo(pixel_shift);
         solution_row = r;
@@ -338,8 +338,8 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     Point.s              = pixelDistance * s;
     Point.response       = Response;
     Point.pixel_distance = pixelDistance;
-    Point.row            = next_row;
-    Point.col            = next_col;
+    Point.y_pos          = next_row;
+    Point.x_pos          = next_col;
 
     return true;
 }

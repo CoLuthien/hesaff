@@ -20,7 +20,7 @@ public:
     cv::Mat Patch;
 
 public:
-    int row, col;
+    int y_pos, x_pos;
 
 public:
     int octave_idx, layer_idx;

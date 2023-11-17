@@ -32,8 +32,8 @@ main()
         cv::Mat Result;
         if (deformer.FindAffineDeformation(Pyr, point, point.AffineDeformation))
         {
-            float* ptr = Result.ptr<float>();
-            count++;
+            deformer.ExtractAndNormalizeAffinePatch(
+                Pyr[point.octave_idx].GetLayerBlur(point.layer_idx), point, Result);
         }
     }
     std::cout << count << '\n';

@@ -36,8 +36,13 @@ bool IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, s
 HA_API
 void SampleDeformAndInterpolate(cv::Mat const&  Img,
                                 cv::Point const Center,
-                                float           DeformMatrix[4],
+                                float const     DeformMatrix[4],
                                 cv::Mat&        Result);
+HA_API
+bool IsSampleTouchBorder(cv::Size const  ImgSize,
+                         cv::Size const  SampleSize,
+                         cv::Point const Center,
+                         float const     DeformMatrix[4]);
 HA_API
 void ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat Grady);
 

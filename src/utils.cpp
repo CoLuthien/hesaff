@@ -87,7 +87,7 @@ IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
 void
 SampleDeformAndInterpolate(cv::Mat const&  Img,
                            cv::Point const Center,
-                           float           DeformMatrix[4],
+                           float const     DeformMatrix[4],
                            cv::Mat&        Result)
 {
     int const SampleWidth  = Img.cols - 1;
@@ -205,6 +205,35 @@ RetifyAffineDeformation(float deformation[4])
     deformation[1] = 0;
     deformation[2] = (d * b + c * a) / (b2a2 * det);
     deformation[3] = det / b2a2;
+}
+
+bool
+IsSampleTouchBorder(cv::Size const  ImgSize,
+                    cv::Size const  SampleSize,
+                    cv::Point const Center,
+                    float const     DeformMatrix[4])
+{
+    const float width      = static_cast<float>(ImgSize.width - 2);
+    const float height     = static_cast<float>(ImgSize.height - 2);
+    const float halfWidth  = static_cast<float>(SampleSize.width >> 1);
+    const float halfHeight = static_cast<float>(SampleSize.height >> 1);
+
+    float x[4] = {-halfWidth, -halfWidth, +halfWidth, +halfWidth};
+    float y[4] = {-halfHeight, +halfHeight, -halfHeight, +halfHeight};
+
+    float a11 = DeformMatrix[0], a12 = DeformMatrix[1], a21 = DeformMatrix[2],
+          a22 = DeformMatrix[3];
+
+    float const ofsx = Center.x;
+    float const ofsy = Center.y;
+    for (int i = 0; i < 4; i++)
+    {
+        float imx = ofsx + x[i] * a11 + y[i] * a12;
+        float imy = ofsy + x[i] * a21 + y[i] * a22;
+        if (floor(imx) <= 0 || floor(imy) <= 0 || ceil(imx) >= width || ceil(imy) >= height)
+            return true;
+    }
+    return false;
 }
 
 } // namespace utils
