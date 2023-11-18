@@ -32,44 +32,47 @@ main()
         adet.detectAndCompute(Actual, {}, kp1, Desc1);
         adet.detectAndCompute(Actual2, {}, kp2, Desc2);
 
-        std::vector<cv::Point2f> pt1, pt2;
-        std::vector<cv::DMatch>  Matches;
+        std::vector<cv::Point2f>             pt1, pt2;
+        std::vector<std::vector<cv::DMatch>> Matches;
 
-        matcher->match(Desc1, Desc2, Matches);
-        cv::KeyPoint::convert(kp1, pt1);
-        cv::KeyPoint::convert(kp2, pt2);
+        matcher->knnMatch(Desc1, Desc2, Matches, 2);
 
+        std::vector<cv::KeyPoint> v1, v2;
+        std::vector<cv::DMatch>   Filtered;
+        for (auto& m : Matches)
+        {
+            auto& m1 = m[0];
+            auto& m2 = m[1];
+
+            if (m1.distance < m2.distance * 0.2)
+            {
+                v1.emplace_back(kp1[m1.queryIdx]);
+                v2.emplace_back(kp2[m1.trainIdx]);
+                Filtered.emplace_back(m1);
+            }
+        }
+        cv::KeyPoint::convert(v1, pt1);
+        cv::KeyPoint::convert(v2, pt2);
         std::cout << pt1.size() << '\t' << pt2.size() << '\n';
 
         cv::Mat Mask;
 
-        cv::findHomography(pt1, pt2, Mask, cv::USAC_FAST);
-        std::cout << "hierere\n";
+        auto&& H = cv::findHomography(pt1, pt2, Mask, cv::USAC_ACCURATE);
 
         cv::Mat View;
 
         cv::Mat View1, View2;
 
-        std::vector<cv::DMatch> FilteredMatches;
-        auto const*             ptr = Mask.ptr<uint8_t>();
-        for (auto i = 0; i < Mask.cols; ++i)
-        {
-            if (ptr[i] > 0)
-            {
-                FilteredMatches.emplace_back(Matches[i]);
-            }
-        }
-        std::cout << "hierere\n";
-
+        std::cout << Mask.size << '\n';
         cv::drawMatches(Resize1,
                         kp1,
                         Resize2,
                         kp2,
-                        FilteredMatches,
+                        Filtered,
                         View,
                         cv::Scalar::all(-1),
                         cv::Scalar::all(-1),
-                        {},
+                        Mask,
                         cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
         cv::imshow("W", View);

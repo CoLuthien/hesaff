@@ -27,7 +27,7 @@ GaussianBlurRelativeKernel(cv::Mat const& Img, float const Sigma)
     }
 
     cv::Mat Result;
-    cv::GaussianBlur(Img, Result, {size, size}, Sigma);
+    cv::GaussianBlur(Img, Result, {size, size}, Sigma, Sigma, cv::BORDER_REPLICATE);
 
     return std::move(Result);
 }
@@ -85,10 +85,10 @@ IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
 }
 
 bool
-SampleDeformAndInterpolate(cv::Mat const&  Img,
-                           cv::Point const Center,
-                           float const     DeformMatrix[4],
-                           cv::Mat&        Result)
+SampleDeformAndInterpolate(cv::Mat const&    Img,
+                           cv::Point2i const Center,
+                           float const       DeformMatrix[4],
+                           cv::Mat&          Result)
 {
     int const SampleWidth  = Img.cols - 1;
     int const SampleHeight = Img.rows - 1;
@@ -96,8 +96,8 @@ SampleDeformAndInterpolate(cv::Mat const&  Img,
     int const OutputWidth  = Result.cols >> 1;
     int const OutputHeight = Result.rows >> 1;
 
-    float const center_row = Center.x;
-    float const center_col = Center.y;
+    float const center_row = (float)Center.x;
+    float const center_col = (float)Center.y;
 
     float const a11 = DeformMatrix[0], a12 = DeformMatrix[1], a21 = DeformMatrix[2],
                 a22 = DeformMatrix[3];
@@ -115,8 +115,8 @@ SampleDeformAndInterpolate(cv::Mat const&  Img,
             int const x          = (int)std::floor(row_weight);
             int const y          = (int)std::floor(col_weight);
 
-            int clamed_x = std::clamp(x, 0, SampleWidth - 2);
-            int clamed_y = std::clamp(y, 0, SampleHeight - 2);
+            int clamed_x = std::clamp(x, 0, SampleWidth - 1);
+            int clamed_y = std::clamp(y, 0, SampleHeight - 1);
 
             if (clamed_x == x && clamed_y == y)
             {
@@ -126,8 +126,7 @@ SampleDeformAndInterpolate(cv::Mat const&  Img,
                 auto const a_term =
                     (1.0f - col_weight) * ((1.0f - row_weight) * at<float>(Img, y, x) +
                                            row_weight * at<float>(Img, y, x + 1));
-
-                auto const b_term = (col_weight) * ((1.0f - row_weight) * at<float>(Img, y + 1, x) +
+                auto const b_term = (col_weight) * ((1. - row_weight) * at<float>(Img, y + 1, x) +
                                                     row_weight * at<float>(Img, y + 1, x + 1));
 
                 *out = a_term + b_term;

@@ -67,22 +67,24 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
 
     for (auto& Point : ValidCandidates)
     {
-        auto const  x = (float)Point.Patch.cols / 2;
-        auto const  y = (float)Point.Patch.rows / 2;
+        auto const x = (float)Point.Patch.cols / 2;
+        auto const y = (float)Point.Patch.rows / 2;
+
+        auto const patch_radius = std::sqrt(2 * x * x) / 2;
+
         cv::Size    PatchSize{Point.Patch.cols, Point.Patch.rows};
         std::vector Location{
-            cv::KeyPoint{x, y, (float)PatchSize.area(), -1, Point.response, Point.octave_idx},
+            cv::KeyPoint{x, y, patch_radius, -1, Point.response, Point.octave_idx},
         };
         cv::Mat Desc;
         cv::Mat Img;
-        Point.Patch.convertTo(Img, CV_8UC1);
+        cv::normalize(Point.Patch, Img, 255, 0, cv::NORM_MINMAX, CV_8U);
         m_backend->compute(Img, Location, Desc);
-        keypoints.emplace_back(cv::KeyPoint{Point.x,
-                                            Point.y,
-                                            std::sqrtf(2. * std::pow(PatchSize.height, 2)),
-                                            -1,
-                                            Point.response,
-                                            Point.octave_idx});
+        // std::cout << Desc << '\n';
+        //  std::cout << Img << '\n';
+
+        keypoints.emplace_back(
+            cv::KeyPoint{Point.x, Point.y, patch_radius, -1, Point.response, Point.octave_idx});
         auto const* ptr = Desc.ptr<float>();
         for (int i = 0; i < Desc.cols; i++)
         {

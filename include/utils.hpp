@@ -64,4 +64,7 @@ void ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat Grady);
 HA_API
 cv::Mat ComputeGaussianMask(std::size_t const size);
 
+HA_API
+void rectifyAffineTransformationUpIsUp(float Transform[4]);
+
 } // namespace utils

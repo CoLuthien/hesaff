@@ -8,7 +8,6 @@
 namespace
 {
 
-
 // 이게 뭔지 해독해서 풀기
 void
 MatrixSqrt(float& a, float& b, float& c, float& l1, float& l2)
@@ -199,26 +198,6 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
     int const SampleWidth  = patchImageSize;
     int const SampleHeight = patchImageSize;
 
-    {
-        float Deformation[4];
-
-        std::memcpy(Deformation, Point.AffineDeformation.ptr<float>(), sizeof(float) * 4);
-        Deformation[0] *= imageToPatchScale;
-        Deformation[1] *= imageToPatchScale;
-        Deformation[2] *= imageToPatchScale;
-        Deformation[3] *= imageToPatchScale;
-        bool TouchBorder = utils::IsSampleTouchBorder({ImgWidth, ImgHeight},
-                                                      {SampleWidth, SampleHeight},
-                                                      {Point.x_pos, Point.y_pos},
-                                                      Deformation);
-
-        // is patch touching boundary? if yes, ignore this feature
-        if (TouchBorder)
-        {
-            return false;
-        }
-    }
-
     cv::Point const Center{Point.x_pos, Point.y_pos};
     if (imageToPatchScale > 0.4)
     {
@@ -231,7 +210,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         auto TouchBorder = utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Sample);
         if (TouchBorder == false)
         {
-            cv::Mat Result(patchImageSize, patchImageSize, CV_32F);
+            cv::Mat Result(41, 41, CV_32F);
 
             auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
             float const Deform[4] = {imageToPatchScale, 0, 0, imageToPatchScale};
