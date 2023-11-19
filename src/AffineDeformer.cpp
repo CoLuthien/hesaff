@@ -8,6 +8,19 @@
 namespace
 {
 
+template <typename T>
+T
+at(cv::Mat const& Img, int const width, int const Height)
+{
+    auto const* Ptr = Img.data;
+    return ((T*)(Ptr + Img.step[0] * width))[Height];
+}
+
+} // namespace
+
+namespace
+{
+
 // 이게 뭔지 해독해서 풀기
 void
 MatrixSqrt(float& a, float& b, float& c, float& l1, float& l2)
@@ -122,25 +135,13 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
         utils::ComputeGradient(Sample, grad_x, grad_y);
 
         // estimate SMM
-        for (int i = 0; i < maskPixels; ++i)
-        {
-            const float v   = (*MaskPtr);
-            const float gxx = *GradxPtr;
-            const float gyy = *GradyPtr;
-            const float gxy = gxx * gyy;
-
-            a += gxx * gxx * v;
-            b += gxy * v;
-            c += gyy * gyy * v;
-            GradxPtr++;
-            GradyPtr++;
-            MaskPtr++;
-        }
-        a /= maskPixels;
-        b /= maskPixels;
-        c /= maskPixels;
+        auto SMM = utils::EstimateStructureTensor(GaussisanMask, grad_x, grad_y);
+        a        = at<double>(SMM, 0, 0);
+        b        = at<double>(SMM, 0, 1);
+        c        = at<double>(SMM, 1, 1);
 
         MatrixSqrt(a, b, c, eig_1, eig_2);
+
         eigen_ratio_bef = eigen_ratio_act;
         eigen_ratio_act = 1 - eig_2 / eig_1;
 

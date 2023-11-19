@@ -1,8 +1,20 @@
 
 #include "HessianAffineDetector.hpp"
-
+#include "Utils.hpp"
 #include <memory>
 #include <execution>
+
+namespace
+{
+template <typename T>
+T
+at(cv::Mat const& Img, int const Row, int const Col)
+{
+    auto const* Ptr = Img.data;
+    return ((T*)(Ptr + Img.step[0] * Row))[Col];
+}
+
+} // namespace
 
 namespace ha
 {
@@ -19,7 +31,7 @@ HessianAffineDetector::HessianAffineDetector(cv::Ptr<cv::Feature2D>       Backen
 }
 
 std::vector<CandidatePoint>
-HessianAffineDetector::detectKeypoints(cv::Mat const& Img)
+HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask)
 {
     HessianResponsePyramid const Pyr(Img, {});
 
@@ -29,11 +41,21 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img)
     std::for_each(std::execution::par,
                   Candidates.begin(),
                   Candidates.end(),
-                  [&Pyr, &detector = m_detector, &deformer = m_deformer](CandidatePoint& Point) {
+                  [MatSize = Img.size, &Pyr, &detector = m_detector, &deformer = m_deformer, &Mask](
+                      CandidatePoint& Point) -> void {
+                      if (Mask.size == MatSize)
+                      {
+                          auto MaskValue = at<uint8_t>(Mask, Point.y_pos, Point.x_pos);
+                          if (MaskValue == 0)
+                          {
+                              return;
+                          }
+                      }
                       bool DeformationFound =
                           deformer->FindAffineDeformation(Pyr, Point, Point.AffineDeformation);
                       if (DeformationFound)
                       {
+                          //utils::RetifyAffineDeformation(Point.AffineDeformation);
                           bool PatchExtracted =
                               deformer->ExtractAndNormalizeAffinePatch(Pyr, Point, Point.Patch);
                           if (PatchExtracted)
@@ -61,9 +83,12 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
                                         bool                              useProvidedKeypoints)
 {
 
-    auto&& ValidCandidates = detectKeypoints(image.getMat());
+    auto const& Image = image.getMat();
+    auto const& Mask  = mask.getMat();
 
-    std::vector<float> Descs;
+    auto&& ValidCandidates = detectKeypoints(Image, Mask);
+
+    std::vector<float> Descriptors;
 
     for (auto& Point : ValidCandidates)
     {
@@ -74,7 +99,7 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
 
         cv::Size    PatchSize{Point.Patch.cols, Point.Patch.rows};
         std::vector Location{
-            cv::KeyPoint{x, y, patch_radius, -1, Point.response, Point.octave_idx},
+            cv::KeyPoint{x, y, patch_radius},
         };
         cv::Mat Desc;
         cv::Mat Img;
@@ -83,16 +108,15 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
         // std::cout << Desc << '\n';
         //  std::cout << Img << '\n';
 
-        keypoints.emplace_back(
-            cv::KeyPoint{Point.x, Point.y, patch_radius, -1, Point.response, Point.octave_idx});
+        keypoints.emplace_back(cv::KeyPoint{Point.x, Point.y, patch_radius});
         auto const* ptr = Desc.ptr<float>();
         for (int i = 0; i < Desc.cols; i++)
         {
-            Descs.push_back(ptr[i]);
+            Descriptors.push_back(ptr[i]);
         }
     }
 
-    cv::Mat Result(ValidCandidates.size(), 128, CV_32F, Descs.data());
+    cv::Mat Result(ValidCandidates.size(), 128, CV_32F, Descriptors.data());
 
     Result.copyTo(descriptors);
 }

@@ -6,11 +6,10 @@ namespace
 
 template <typename T>
 T
-at(cv::Mat const& Img, int const Row, int const Col)
+at(cv::Mat const& Img, int const width, int const Height)
 {
     auto const* Ptr = Img.data;
-    // return ((T*)(Ptr + Img.step[0] * Row))[Col];
-    return Img.at<T>(Row, Col);
+    return ((T*)(Ptr + Img.step[0] * width))[Height];
 }
 
 } // namespace
@@ -192,14 +191,16 @@ ComputeGaussianMask(std::size_t const size)
 }
 
 void
-RetifyAffineDeformation(float deformation[4])
+RetifyAffineDeformation(cv::Mat& Deformation)
 {
+    auto* deformation = Deformation.ptr<float>();
+
     double a = deformation[0];
     double b = deformation[1];
     double c = deformation[2];
     double d = deformation[3];
 
-    double det  = std::sqrt(std::abs(a * d - b * c));
+    double det  = cv::determinant(Deformation);
     double b2a2 = std::sqrt(b * b + a * a);
 
     deformation[0] = b2a2 / det;
@@ -235,6 +236,19 @@ IsSampleTouchBorder(cv::Size const  ImgSize,
             return true;
     }
     return false;
+}
+
+cv::Mat
+EstimateStructureTensor(cv::Mat const& Window, cv::Mat const& GradX, cv::Mat const& GradY)
+{
+    auto       area = Window.cols * Window.rows;
+    auto       a    = cv::sum(GradX.mul(GradX).mul(Window)) / area;
+    auto       b    = cv::sum(GradY.mul(GradY).mul(Window)) / area;
+    auto       c    = cv::sum(GradX.mul(GradY).mul(Window)) / area;
+    std::array arr  = {a[0], c[0], c[0], b[0]};
+
+    cv::Mat Result(2, 2, CV_64F, arr.data());
+    return Result.clone();
 }
 
 } // namespace utils

@@ -28,7 +28,7 @@ public:
                           bool                              useProvidedKeypoints = false);
 
 private:
-    std::vector<CandidatePoint> detectKeypoints(cv::Mat const& Img);
+    std::vector<CandidatePoint> detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask);
 
 private:
     HessianResponsePyramidParams PyramidParam;

@@ -65,6 +65,6 @@ HA_API
 cv::Mat ComputeGaussianMask(std::size_t const size);
 
 HA_API
-void rectifyAffineTransformationUpIsUp(float Transform[4]);
+void RetifyAffineDeformation(cv::Mat& Deformation);
 
 } // namespace utils
