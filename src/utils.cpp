@@ -56,7 +56,7 @@ IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
         {
             if (row[c] > Value)
             {
-                return false;
+                result = false;
             }
         }
     }
@@ -75,7 +75,7 @@ IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
         {
             if (row[c] < Value)
             {
-                return false;
+                result = false;
             }
         }
     }

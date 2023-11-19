@@ -164,15 +164,14 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     int   solution_row, solution_col;
     float Response = 0.;
 
-    auto&& calculate_jacobian = [&Prev, &Current, &Next](
-                                    int const r, int const c, cv::Mat& Result) {
+    auto&& calculate_jacobian = [&Prev, &Current, &Next](int const r, int const c) {
         float dxx = at<float>(Current, r, c - 1) - 2.0f * at<float>(Current, r, c) +
                     at<float>(Current, r, c + 1);
 
         float dyy = at<float>(Current, r - 1, c) - 2.0f * at<float>(Current, r, c) +
                     at<float>(Current, r + 1, c);
 
-        float dss = Prev.at<float>(r, c) - 2.0f * Current.at<float>(r, c) + Next.at<float>(r, c);
+        float dss = at<float>(Prev, r, c) - 2.0f * at<float>(Current, r, c) + at<float>(Next, r, c);
 
         float dxy = 0.25f * (at<float>(Current, r + 1, c + 1) - at<float>(Current, r + 1, c - 1) -
                              at<float>(Current, r - 1, c + 1) + at<float>(Current, r - 1, c - 1));
@@ -189,20 +188,19 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
             dxy, dyy, dys,
             dxs, dys, dss,
         };
-        cv::Mat(3, 3, CV_32F, vec.data()).copyTo(Result);
+        return cv::Mat(3, 3, CV_32F, vec.data()).clone();
         // clang-format on
     };
 
-    auto&& calculate_gradient =
-        [&Prev, &Current, &Next](int const r, int const c, cv::Mat& Result) {
-            float dx = -0.5f * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
-            float dy = -0.5f * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
-            float ds = -0.5f * (at<float>(Next, r, c) - at<float>(Prev, r, c));
+    auto&& calculate_gradient = [&Prev, &Current, &Next](int const r, int const c) {
+        float dx = -0.5f * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
+        float dy = -0.5f * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
+        float ds = -0.5f * (at<float>(Next, r, c) - at<float>(Prev, r, c));
 
-            auto&& arr = std::array{dx, dy, ds};
+        auto&& arr = std::array{dx, dy, ds};
 
-            cv::Mat(3, 1, CV_32F, arr.data()).copyTo(Result);
-        };
+        return cv::Mat(3, 1, CV_32F, arr.data()).clone();
+    };
 
     {
         float dxx = at<float>(Current, PositionY, PositionX - 1) -
@@ -230,10 +228,8 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         int const r = next_row;
         int const c = next_col;
 
-        cv::Mat System;
-        cv::Mat Constant;
-        calculate_jacobian(r, c, System);
-        calculate_gradient(r, c, Constant);
+        cv::Mat System   = calculate_jacobian(r, c);
+        cv::Mat Constant = calculate_gradient(r, c);
         cv::Mat Solution;
 
         cv::solve(System, Constant, Solution);

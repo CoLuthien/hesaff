@@ -26,7 +26,7 @@ struct hash<cv::Point>
     {
         std::size_t h1     = std::hash<float>{}(p.x);
         std::size_t h2     = std::hash<float>{}(p.y);
-        std::size_t result = h1 >> 2 & h2 << 2;
+        std::size_t result = 0;
         hash_combine(result, h1, h2);
         return result;
     }
