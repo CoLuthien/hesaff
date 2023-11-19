@@ -67,4 +67,7 @@ cv::Mat ComputeGaussianMask(std::size_t const size);
 HA_API
 void RetifyAffineDeformation(cv::Mat& Deformation);
 
+HA_API
+cv::Mat EstimateStructureTensor(cv::Mat const& Window, cv::Mat const& GradX, cv::Mat const& GradY);
+
 } // namespace utils
