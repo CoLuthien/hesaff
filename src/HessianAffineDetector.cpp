@@ -55,7 +55,7 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask)
                           deformer->FindAffineDeformation(Pyr, Point, Point.AffineDeformation);
                       if (DeformationFound)
                       {
-                          //utils::RetifyAffineDeformation(Point.AffineDeformation);
+                          utils::RetifyAffineDeformation(Point.AffineDeformation);
                           bool PatchExtracted =
                               deformer->ExtractAndNormalizeAffinePatch(Pyr, Point, Point.Patch);
                           if (PatchExtracted)
@@ -88,7 +88,7 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
 
     auto&& ValidCandidates = detectKeypoints(Image, Mask);
 
-    std::vector<float> Descriptors;
+    std::vector<cv::Mat> Descriptors;
 
     for (auto& Point : ValidCandidates)
     {
@@ -97,27 +97,20 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
 
         auto const patch_radius = std::sqrt(2 * x * x) / 2;
 
-        cv::Size    PatchSize{Point.Patch.cols, Point.Patch.rows};
         std::vector Location{
-            cv::KeyPoint{x, y, patch_radius},
+            cv::KeyPoint{x, y, patch_radius, Point.orientation},
         };
         cv::Mat Desc;
         cv::Mat Img;
-        cv::normalize(Point.Patch, Img, 255, 0, cv::NORM_MINMAX, CV_8U);
+        cv::normalize(Point.Patch, Img, 0, 255, cv::NORM_MINMAX, CV_8U);
         m_backend->compute(Img, Location, Desc);
-        // std::cout << Desc << '\n';
-        //  std::cout << Img << '\n';
+        Descriptors.emplace_back(std::move(Desc));
 
-        keypoints.emplace_back(cv::KeyPoint{Point.x, Point.y, patch_radius});
-        auto const* ptr = Desc.ptr<float>();
-        for (int i = 0; i < Desc.cols; i++)
-        {
-            Descriptors.push_back(ptr[i]);
-        }
+        keypoints.emplace_back(
+            cv::KeyPoint(Point.x, Point.y, patch_radius, Point.orientation, Point.response));
     }
-
-    cv::Mat Result(ValidCandidates.size(), 128, CV_32F, Descriptors.data());
-
+    cv::Mat Result(Descriptors.size(), Descriptors[0].cols, Descriptors[0].depth());
+    cv::vconcat(Descriptors, Result);
     Result.copyTo(descriptors);
 }
 

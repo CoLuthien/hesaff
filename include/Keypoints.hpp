@@ -16,6 +16,7 @@ public:
     float x, y, s;
     float response;
     float pixel_distance;
+    float orientation;
     int   type;
 
 public:

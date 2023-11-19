@@ -3,6 +3,8 @@
 #include "HessianDetector.hpp"
 #include "Utils.hpp"
 
+#include <numbers>
+
 namespace
 {
 template <typename T>
@@ -202,6 +204,12 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         return cv::Mat(3, 1, CV_32F, arr.data()).clone();
     };
 
+    auto&& calculate_orientation = [&Current](int const r, int const c) {
+        float dx = (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
+        float dy = (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
+        return std::atan2(dy, dx) * 180. / std::numbers::pi;
+    };
+
     {
         float dxx = at<float>(Current, PositionY, PositionX - 1) -
                     2.0f * at<float>(Current, PositionY, PositionX) +
@@ -320,6 +328,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     Point.y              = pixelDistance * (solution_row + shift_ptr[1]);
     Point.s              = pixelDistance * scale;
     Point.response       = Response;
+    Point.orientation    = calculate_orientation(solution_row, solution_col);
     Point.pixel_distance = pixelDistance;
     Point.x_pos          = next_col;
     Point.y_pos          = next_row;
