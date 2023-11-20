@@ -205,8 +205,8 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     };
 
     auto&& calculate_orientation = [&Current](int const r, int const c) {
-        float dx = (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
-        float dy = (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
+        float dx = -0.5 * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
+        float dy = -0.5 * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
         return std::atan2(dy, dx) * 180. / std::numbers::pi;
     };
 
@@ -328,7 +328,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     Point.y              = pixelDistance * (solution_row + shift_ptr[1]);
     Point.s              = pixelDistance * scale;
     Point.response       = Response;
-    Point.orientation    = calculate_orientation(solution_row, solution_col);
+    Point.orientation    = -1.;
     Point.pixel_distance = pixelDistance;
     Point.x_pos          = next_col;
     Point.y_pos          = next_row;
