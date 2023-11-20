@@ -86,7 +86,17 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
     auto const& Image = image.getMat();
     auto const& Mask  = mask.getMat();
 
-    auto&& ValidCandidates = detectKeypoints(Image, Mask);
+    cv::Mat Target;
+    if (Image.depth() != CV_32FC1)
+    {
+        Image.convertTo(Target, CV_32FC1);
+    }
+    else
+    {
+        Image.copyTo(Target);
+    }
+
+    auto&& ValidCandidates = detectKeypoints(Target, Mask);
 
     std::vector<cv::Mat> Descriptors;
 
@@ -108,6 +118,10 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
 
         keypoints.emplace_back(
             cv::KeyPoint(Point.x, Point.y, patch_radius, Point.orientation, Point.response));
+    }
+    if (Descriptors.empty())
+    {
+        return;
     }
     cv::Mat Result(Descriptors.size(), Descriptors[0].cols, Descriptors[0].depth());
     cv::vconcat(Descriptors, Result);
