@@ -82,7 +82,6 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
                                         cv::OutputArray                   descriptors,
                                         bool                              useProvidedKeypoints)
 {
-
     auto const& Image = image.getMat();
     auto const& Mask  = mask.getMat();
 
@@ -108,7 +107,7 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
         auto const patch_radius = std::sqrt(2 * x * x) / 2;
 
         std::vector Location{
-            cv::KeyPoint{x, y, patch_radius, Point.orientation},
+            cv::KeyPoint{x, y, patch_radius, Point.orientation, Point.response},
         };
         cv::Mat Desc;
         cv::Mat Img;

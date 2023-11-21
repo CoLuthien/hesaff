@@ -4,6 +4,7 @@
 #include "Utils.hpp"
 
 #include <opencv2/opencv.hpp>
+#include <cmath>
 
 namespace
 {
@@ -211,7 +212,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         auto TouchBorder = utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Sample);
         if (TouchBorder == false)
         {
-            cv::Mat Result(41, 41, CV_32F);
+            cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
 
             auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 3 * imageToPatchScale);
             float const Deform[4] = {imageToPatchScale, 0, 0, imageToPatchScale};

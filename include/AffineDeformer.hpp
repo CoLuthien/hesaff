@@ -26,7 +26,7 @@ struct HA_API AffineDeformerParams
     float const convergenceThreshold = .05;
     float const initialSigma         = 1.6;
     // size of the measurement region (as multiple of the feature scale)
-    float const mrSize = 3. * std::sqrt(3);
+    float const mrSize = 3.f * std::sqrtf(3);
 };
 
 class HA_API AffineDeformer

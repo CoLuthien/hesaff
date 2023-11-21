@@ -23,7 +23,7 @@ message("OpenCV_LIBS: " ${OpenCV_LIBS})
 
 add_library(
 	HessianAffine 
-	SHARED
+SHARED
 	src/Utils.cpp
 	src/HessianPyramid.cpp
 	src/HessianAffineDetector.cpp
@@ -46,9 +46,16 @@ PUBLIC
 
 target_include_directories(HessianAffine
 PUBLIC
-	${CMAKE_SOURCE_DIR}/include
-	${CMAKE_CURRENT_BINARY_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_BINARY_DIR}
+INTERFACE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+PRIVATE
+)
 
+target_compile_definitions(HessianAffine
+PRIVATE
+	HessianAffine_EXPORTS
 )
 #add_executable(HATest 
 	#src/main.cpp
@@ -61,9 +68,9 @@ PUBLIC
 
 install(TARGETS HessianAffine
 	DESTINATION ${CMAKE_INSTALL_PREFIX}/install
-	RUNTIME_DEPENDENCIES DIRECTORIES ${CMAKE_INSTALL_PREFIX}/install
-	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
-	POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
+	#RUNTIME_DEPENDENCIES DIRECTORIES ${CMAKE_INSTALL_PREFIX}/install
+	#PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
+	#POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
 )
 
 export (TARGETS HessianAffine
