@@ -1,7 +1,6 @@
 
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-include (GenerateExportHeader)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake")
@@ -12,14 +11,7 @@ project(HessianAffine LANGUAGES CXX)
 
 find_package(OpenCV REQUIRED)
 
-include_directories( ${OpenCV_INCLUDE_DIRS} )
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
-
-message("OpenCV_INCLUDE_DIRS: " ${OpenCV_INCLUDE_DIRS})
-message("OpenCV_LIBS: " ${OpenCV_LIBS})
-
+include (GenerateExportHeader)
 
 add_library(
 	HessianAffine 
@@ -68,9 +60,9 @@ PRIVATE
 
 install(TARGETS HessianAffine
 	DESTINATION ${CMAKE_INSTALL_PREFIX}/install
-	#RUNTIME_DEPENDENCIES DIRECTORIES ${CMAKE_INSTALL_PREFIX}/install
-	#PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
-	#POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
+	RUNTIME_DEPENDENCIES DIRECTORIES ${CMAKE_INSTALL_PREFIX}/install
+	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
+	POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
 )
 
 export (TARGETS HessianAffine
