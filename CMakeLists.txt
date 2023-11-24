@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_TOOLCHAIN_FILE "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake")
 set(CMAKE_PREFIX_PATH  "${CMAKE_PREFIX_PATH} C:/dev/vcpkg/installed/x64-windows")
 
@@ -59,13 +59,8 @@ PRIVATE
 #)
 
 install(TARGETS HessianAffine
-	DESTINATION ${CMAKE_INSTALL_PREFIX}/install
-	RUNTIME_DEPENDENCIES DIRECTORIES ${CMAKE_INSTALL_PREFIX}/install
+	DESTINATION ${CMAKE_INSTALL_PREFIX}
+	RUNTIME_DEPENDENCIES 
 	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-"
 	POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
-)
-
-export (TARGETS HessianAffine
-	NAMESPACE HA
-	FILE HAConfig.cmake
 )
