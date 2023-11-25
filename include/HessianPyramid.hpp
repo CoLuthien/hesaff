@@ -11,7 +11,7 @@ struct HessianResponsePyramidParams
 public:
     int   numOctaves   = 5;   // number of half scaled image for octaves
     int   numLayers    = 7;  // amount of gaussian blurred image for each Hessian Octave
-    float initialSigma = 1.6; // amount of smoothing applied to the initial level of first octave
+    float initialSigma = 1.2; // amount of smoothing applied to the initial level of first octave
 };
 
 class HA_API HessianResponseOctave

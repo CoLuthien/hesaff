@@ -62,7 +62,8 @@ HessianDetector::HessianDetector(int const   nBorders,
 }
 
 std::vector<CandidatePoint>
-HessianDetector::FindOctaveCandidates(HessianResponsePyramid const& Pyr, std::size_t const Octave)
+HessianDetector::FindOctaveCandidates(HessianResponsePyramid const& Pyr,
+                                      std::size_t const             Octave) const
 {
     std::vector<CandidatePoint>   Result;
     std::unordered_set<cv::Point> VisitMap;
@@ -78,7 +79,7 @@ std::vector<CandidatePoint>
 HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
                                      std::size_t const              OctaveIdx,
                                      std::size_t const              LayerIdx,
-                                     std::unordered_set<cv::Point>& VisitMap)
+                                     std::unordered_set<cv::Point>& VisitMap) const
 {
     std::vector<CandidatePoint> Result;
 
@@ -150,7 +151,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
                                    int const                      PositionX,
                                    float const                    CurSigma,
                                    float const                    pixelDistance,
-                                   int const                      NumLayers)
+                                   int const                      NumLayers) const
 {
     static constexpr auto MaxSubpixelShift  = 0.6;
     static constexpr auto PointSafetyBorder = 2;
@@ -337,7 +338,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
 }
 
 std::vector<CandidatePoint>
-HessianDetector::DetectCandidates(HessianResponsePyramid const& Pyr)
+HessianDetector::DetectCandidates(HessianResponsePyramid const& Pyr) const
 {
     std::vector<CandidatePoint> Result;
     for (int OctaveIdx = 0; OctaveIdx < Pyr.numOctaves(); ++OctaveIdx)

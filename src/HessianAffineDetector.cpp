@@ -26,52 +26,35 @@ HessianAffineDetector::HessianAffineDetector(cv::Ptr<cv::Feature2D>       Backen
     : PyramidParam(std::move(InPyrParam)), HessianParam(std::move(InHessianParam)),
       AffineParam(std::move(InAffineParam)), m_backend(Backend)
 {
-    m_detector = std::make_unique<HessianDetector>(HessianParam);
-    m_deformer = std::make_unique<AffineDeformer>(AffineParam);
+    m_detector = std::make_shared<HessianDetector>(HessianParam);
+    m_deformer = std::make_shared<AffineDeformer>(AffineParam);
 }
 
 std::vector<CandidatePoint>
-HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask)
+HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) const
 {
     HessianResponsePyramid const Pyr(Img, {});
 
     auto&& Candidates = m_detector->DetectCandidates(Pyr);
 
     std::vector<CandidatePoint> Result;
-    std::for_each(std::execution::par,
-                  Candidates.begin(),
-                  Candidates.end(),
-                  [MatSize = Img.size, &Pyr, &detector = m_detector, &deformer = m_deformer, &Mask](
-                      CandidatePoint& Point) -> void {
-                      if (Mask.size == MatSize)
-                      {
-                          auto MaskValue = at<uint8_t>(Mask, Point.y_pos, Point.x_pos);
-                          if (MaskValue == 0)
-                          {
-                              return;
-                          }
-                      }
-                      bool DeformationFound =
-                          deformer->FindAffineDeformation(Pyr, Point, Point.AffineDeformation);
-                      if (DeformationFound)
-                      {
-                          utils::RetifyAffineDeformation(Point.AffineDeformation);
-                          bool PatchExtracted =
-                              deformer->ExtractAndNormalizeAffinePatch(Pyr, Point, Point.Patch);
-                          if (PatchExtracted)
-                          {
-                              Point.IsValid = true;
-                          }
-                      }
-                  });
-
-    for (auto&& Point : Candidates)
+    Result.reserve(Candidates.size());
+    for (auto& Point : Candidates)
     {
-        if (Point.IsValid)
+        bool DeformationFound =
+            m_deformer->FindAffineDeformation(Pyr, Point, Point.AffineDeformation);
+        if (DeformationFound)
         {
-            Result.emplace_back(std::move(Point));
+            utils::RetifyAffineDeformation(Point.AffineDeformation);
+            bool PatchExtracted =
+                m_deformer->ExtractAndNormalizeAffinePatch(Pyr, Point, Point.Patch);
+            if (PatchExtracted)
+            {
+                Result.emplace_back(std::move(Point));
+            }
         }
     }
+
     return Result;
 }
 
@@ -80,7 +63,7 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
                                         cv::InputArray mask,
                                         CV_OUT std::vector<cv::KeyPoint>& keypoints,
                                         cv::OutputArray                   descriptors,
-                                        bool                              useProvidedKeypoints)
+                                        bool useProvidedKeypoints) const
 {
     auto const& Image = image.getMat();
     auto const& Mask  = mask.getMat();

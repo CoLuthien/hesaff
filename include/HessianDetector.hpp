@@ -43,15 +43,15 @@ public:
     HessianDetector(int const nBorders, float const edgeEigvalRatio, float const threshold);
 
 public:
-    std::vector<CandidatePoint> DetectCandidates(HessianResponsePyramid const& Pyr);
+    std::vector<CandidatePoint> DetectCandidates(HessianResponsePyramid const& Pyr) const;
 
 private:
     std::vector<CandidatePoint> FindOctaveCandidates(HessianResponsePyramid const& Pyr,
-                                                     std::size_t const             Octave);
+                                                     std::size_t const             Octave) const;
     std::vector<CandidatePoint> FindLayerCandidates(HessianResponsePyramid const&  Pyr,
                                                     std::size_t const              Octave,
                                                     std::size_t const              LayerIdx,
-                                                    std::unordered_set<cv::Point>& VisitMap);
+                                                    std::unordered_set<cv::Point>& VisitMap) const;
 
     bool LocalizeCandidate(CandidatePoint&                Point,
                            std::unordered_set<cv::Point>& VisitMap,
@@ -62,7 +62,7 @@ private:
                            int const                      PositionX,
                            float const                    CurSigma,
                            float const                    pixelDistance,
-                           int const                      numLayers);
+                           int const                      numLayers) const;
 
 private:
     HessianDetectorParams const param_detect;

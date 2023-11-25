@@ -25,10 +25,10 @@ public:
                           cv::InputArray mask,
                           CV_OUT std::vector<cv::KeyPoint>& keypoints,
                           cv::OutputArray                   descriptors,
-                          bool                              useProvidedKeypoints = false);
+                          bool                              useProvidedKeypoints = false) const;
 
 private:
-    std::vector<CandidatePoint> detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask);
+    std::vector<CandidatePoint> detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) const;
 
 private:
     HessianResponsePyramidParams PyramidParam;
