@@ -205,12 +205,6 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         return cv::Mat(3, 1, CV_32F, arr.data()).clone();
     };
 
-    auto&& calculate_orientation = [&Current](int const r, int const c) {
-        float dx = -0.5 * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
-        float dy = -0.5 * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
-        return std::atan2(dy, dx) * 180. / std::numbers::pi;
-    };
-
     {
         float dxx = at<float>(Current, PositionY, PositionX - 1) -
                     2.0f * at<float>(Current, PositionY, PositionX) +

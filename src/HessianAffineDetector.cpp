@@ -19,12 +19,12 @@ at(cv::Mat const& Img, int const Row, int const Col)
 namespace ha
 {
 
-HessianAffineDetector::HessianAffineDetector(cv::Ptr<cv::Feature2D>       Backend,
-                                             HessianResponsePyramidParams InPyrParam,
-                                             HessianDetectorParams        InHessianParam,
-                                             AffineDeformerParams         InAffineParam)
+HessianAffineDetector::HessianAffineDetector(std::shared_ptr<FeatureExtractor> Backend,
+                                             HessianResponsePyramidParams      InPyrParam,
+                                             HessianDetectorParams             InHessianParam,
+                                             AffineDeformerParams              InAffineParam)
     : PyramidParam(std::move(InPyrParam)), HessianParam(std::move(InHessianParam)),
-      AffineParam(std::move(InAffineParam)), m_backend(Backend)
+      AffineParam(std::move(InAffineParam)), m_backend(std::move(Backend))
 {
     m_detector = std::make_shared<HessianDetector>(HessianParam);
     m_deformer = std::make_shared<AffineDeformer>(AffineParam);
@@ -59,6 +59,37 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) 
 }
 
 void
+HessianAffineDetector::CalculateDescriptors(std::vector<CandidatePoint> const& candidates,
+                                            std::vector<cv::KeyPoint>&         keypoints,
+                                            cv::OutputArray                    descriptors) const
+{
+    std::vector<cv::Mat> Descs;
+    for (auto& Point : candidates)
+    {
+        auto const x = (float)Point.Patch.cols / 2;
+        auto const y = (float)Point.Patch.rows / 2;
+
+        auto const patch_radius = std::sqrt(2 * x * x) / 2;
+
+        std::vector Location{
+            cv::KeyPoint{x, y, patch_radius, Point.orientation, Point.response},
+        };
+        cv::Mat Desc;
+        cv::Mat Img;
+        cv::normalize(Point.Patch, Img, 0, 255, cv::NORM_MINMAX, CV_8U);
+        m_backend->compute(Img, Location, Desc);
+        Descs.emplace_back(std::move(Desc));
+
+        keypoints.emplace_back(
+            cv::KeyPoint(Point.x, Point.y, patch_radius, Point.orientation, Point.response));
+    }
+
+    cv::Mat Result(Descs.size(), Descs[0].cols, Descs[0].depth());
+    cv::vconcat(Descs, Result);
+    Result.copyTo(descriptors);
+}
+
+void
 HessianAffineDetector::detectAndCompute(cv::InputArray image,
                                         cv::InputArray mask,
                                         CV_OUT std::vector<cv::KeyPoint>& keypoints,
@@ -79,35 +110,7 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
     }
 
     auto&& ValidCandidates = detectKeypoints(Target, Mask);
-
-    std::vector<cv::Mat> Descriptors;
-
-    for (auto& Point : ValidCandidates)
-    {
-        auto const x = (float)Point.Patch.cols / 2;
-        auto const y = (float)Point.Patch.rows / 2;
-
-        auto const patch_radius = std::sqrt(2 * x * x) / 2;
-
-        std::vector Location{
-            cv::KeyPoint{x, y, patch_radius, Point.orientation, Point.response},
-        };
-        cv::Mat Desc;
-        cv::Mat Img;
-        cv::normalize(Point.Patch, Img, 0, 255, cv::NORM_MINMAX, CV_8U);
-        m_backend->compute(Img, Location, Desc);
-        Descriptors.emplace_back(std::move(Desc));
-
-        keypoints.emplace_back(
-            cv::KeyPoint(Point.x, Point.y, patch_radius, Point.orientation, Point.response));
-    }
-    if (Descriptors.empty())
-    {
-        return;
-    }
-    cv::Mat Result(Descriptors.size(), Descriptors[0].cols, Descriptors[0].depth());
-    cv::vconcat(Descriptors, Result);
-    Result.copyTo(descriptors);
+    CalculateDescriptors(ValidCandidates, keypoints, descriptors);
 }
 
 } // namespace ha

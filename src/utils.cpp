@@ -119,12 +119,13 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
 
             if (clamed_x == x && clamed_y == y)
             {
-                row_weight = row_weight - x;
-                col_weight = col_weight - y;
+                row_weight        = row_weight - x;
+                col_weight        = col_weight - y;
+                auto const a_coef = (1.0f - col_weight);
 
-                auto const a_term =
-                    (1.0f - col_weight) * ((1.0f - row_weight) * at<float>(Img, y, x) +
-                                           row_weight * at<float>(Img, y, x + 1));
+                auto const a_term = a_coef * ((1.0f - row_weight) * at<float>(Img, y, x) +
+                                              row_weight * at<float>(Img, y, x + 1));
+
                 auto const b_term = (col_weight) * ((1. - row_weight) * at<float>(Img, y + 1, x) +
                                                     row_weight * at<float>(Img, y + 1, x + 1));
 

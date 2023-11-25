@@ -135,11 +135,12 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
 
         utils::ComputeGradient(Sample, grad_x, grad_y);
 
-        // estimate SMM
+        // estimate SMM, second moment matrix
         auto SMM = utils::EstimateStructureTensor(GaussisanMask, grad_x, grad_y);
-        a        = at<double>(SMM, 0, 0);
-        b        = at<double>(SMM, 0, 1);
-        c        = at<double>(SMM, 1, 1);
+
+        a = at<double>(SMM, 0, 0);
+        b = at<double>(SMM, 0, 1);
+        c = at<double>(SMM, 1, 1);
 
         MatrixSqrt(a, b, c, eig_1, eig_2);
 
@@ -214,7 +215,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         {
             cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
 
-            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 3 * imageToPatchScale);
+            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
             float const Deform[4] = {imageToPatchScale, 0, 0, imageToPatchScale};
 
             TouchBorder = utils::SampleDeformAndInterpolate(
