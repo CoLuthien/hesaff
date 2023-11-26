@@ -215,7 +215,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         {
             cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
 
-            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
+            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 3 * imageToPatchScale);
             float const Deform[4] = {imageToPatchScale, 0, 0, imageToPatchScale};
 
             TouchBorder = utils::SampleDeformAndInterpolate(
@@ -239,11 +239,11 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         DeformMatrix[2] *= imageToPatchScale;
         DeformMatrix[3] *= imageToPatchScale;
 
-        cv::Mat Result(patchImageSize, patchImageSize, CV_32F);
+        cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
         utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Result);
         Result.copyTo(Patch);
     }
-    return false;
+    return true;
 }
 
 } // namespace ha
