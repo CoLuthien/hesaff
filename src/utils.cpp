@@ -5,7 +5,7 @@ namespace
 {
 
 template <typename T>
-T
+T&
 at(cv::Mat const& Img, int const width, int const Height)
 {
     auto const* Ptr = Img.data;
@@ -46,13 +46,15 @@ HessianResponse(cv::Mat const& Img, float const Sigma)
 }
 
 bool
-IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col)
+IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t const Col)
 {
-    bool result = true;
-    for (int r = Row - 1; r <= Row + 1; ++r)
+    bool       result  = true;
+    auto const RowIter = Row + 1;
+    auto const ColIter = Col + 1;
+    for (int r = Row - 1; r <= RowIter; ++r)
     {
         const float* row = Img.ptr<float>(r);
-        for (int c = Col - 1; c <= Col + 1; ++c)
+        for (int c = Col - 1; c <= ColIter; ++c)
         {
             if (row[c] > Value)
             {
@@ -67,11 +69,13 @@ IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::s
 bool
 IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col)
 {
-    bool result = true;
-    for (int r = Row - 1; r <= Row + 1; ++r)
+    bool       result  = true;
+    auto const RowIter = Row + 1;
+    auto const ColIter = Col + 1;
+    for (int r = Row - 1; r <= RowIter; ++r)
     {
         const float* row = Img.ptr<float>(r);
-        for (int c = Col - 1; c <= Col + 1; ++c)
+        for (int c = Col - 1; c <= ColIter; ++c)
         {
             if (row[c] < Value)
             {
@@ -92,8 +96,8 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
     int const SampleWidth  = Img.cols - 1;
     int const SampleHeight = Img.rows - 1;
     // output size
-    int const OutputWidth  = Result.cols >> 1;
-    int const OutputHeight = Result.rows >> 1;
+    int const OutputWidth  = (Result.cols >> 1);
+    int const OutputHeight = (Result.rows >> 1);
 
     float const center_row = (float)Center.x;
     float const center_col = (float)Center.y;
@@ -145,7 +149,7 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
 }
 
 void
-ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat Grady)
+ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat& Grady)
 {
     cv::Scharr(Img, Gradx, Img.depth(), 1, 0);
     cv::Scharr(Img, Grady, Img.depth(), 0, 1);
@@ -170,23 +174,23 @@ ComputeGaussianMask(std::size_t const size)
     auto const half_x = (size_x - 1) / 2;
     auto const half_y = (size_y - 1) / 2;
 
-    for (int row = 0; row < Mask.rows; ++row)
+    for (int row = 0; row < size_y; ++row)
     {
-        for (int col = 0; col < Mask.cols; ++col)
+        for (int col = 0; col < size_x; ++col)
         {
             /*
             to achieve
             0 1 2 3 4 ... half_x - 1 , half_x, half_x -1 , .... 3, 2, 1, 0
             same for y
             */
-            auto const x             = std::abs(std::abs(half_x - row) - half_x);
-            auto const y             = std::abs(std::abs(half_y - col) - half_y);
-            auto const Numerator     = -(std::pow(x, 2) + std::pow(y, 2));
-            Mask.at<float>(row, col) = std::exp(Numerator / sigma2);
+            auto const x              = std::abs(std::abs(half_x - row) - half_x);
+            auto const y              = std::abs(std::abs(half_y - col) - half_y);
+            auto const Numerator      = -(std::pow(x, 2) + std::pow(y, 2));
+            at<float>(Mask, row, col) = std::exp(Numerator / sigma2);
         }
     }
 
-    Mask /= Mask.at<float>(half_x, half_y);
+    Mask /= at<float>(Mask, half_x, half_y);
 
     return Mask;
 }
@@ -250,6 +254,22 @@ EstimateStructureTensor(cv::Mat const& Window, cv::Mat const& GradX, cv::Mat con
 
     cv::Mat Result(2, 2, CV_64F, arr.data());
     return Result.clone();
+}
+
+void
+PhotometricallyNormalizeImage(cv::InputArray Patch, cv::OutputArray Normalized)
+{
+    auto Img = Patch.getMat();
+
+    auto mean = cv::mean(Img);
+
+    auto var      = (mean - Img).mul(mean - Img);
+    auto variance = cv::mean(var);
+
+    double fac = (50. / variance).val[0];
+
+    cv::Mat Unclamped = 128. + fac * (Img - mean);
+    Unclamped.copyTo(Normalized);
 }
 
 } // namespace utils

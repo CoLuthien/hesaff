@@ -43,10 +43,16 @@ HA_API
 cv::Mat HessianResponse(cv::Mat const& Img, float const Sigma);
 
 HA_API
-bool IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col);
+bool IsRegionMax(cv::Mat const&    Img,
+                 float const       Value,
+                 std::size_t const Row,
+                 std::size_t const Col);
 
 HA_API
-bool IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col);
+bool IsRegionMin(cv::Mat const&    Img,
+                 float const       Value,
+                 std::size_t const Row,
+                 std::size_t const Col);
 
 HA_API
 bool SampleDeformAndInterpolate(cv::Mat const&  Img,
@@ -59,7 +65,7 @@ bool IsSampleTouchBorder(cv::Size const  ImgSize,
                          cv::Point const Center,
                          float const     DeformMatrix[4]);
 HA_API
-void ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat Grady);
+void ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat& Grady);
 
 HA_API
 cv::Mat ComputeGaussianMask(std::size_t const size);
@@ -69,5 +75,8 @@ void RetifyAffineDeformation(cv::Mat& Deformation);
 
 HA_API
 cv::Mat EstimateStructureTensor(cv::Mat const& Window, cv::Mat const& GradX, cv::Mat const& GradY);
+
+HA_API
+void PhotometricallyNormalizeImage(cv::InputArray Patch, cv::OutputArray Normalized);
 
 } // namespace utils

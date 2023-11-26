@@ -226,6 +226,33 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         }
     }
 
+    auto const&& TryUpdatePosition =
+        [](float const Shift, int const current_location, int& next_location, int Space) -> bool {
+        if (Shift > MaxSubpixelShift)
+        {
+            if (current_location < Space - PointSafetyBorder)
+            {
+                next_location++;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        if (Shift < -MaxSubpixelShift)
+        {
+            if (current_location > PointSafetyBorder)
+            {
+                next_location--;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        return true;
+    };
+
     for (int Iter = 0; Iter < 5; ++Iter)
     {
         int const r = next_row;
@@ -253,46 +280,12 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         solution_col = c;
         Response     = value;
 
-        if (solution_ptr[0] > MaxSubpixelShift)
+        if (!TryUpdatePosition(solution_ptr[0], c, next_col, Cols) ||
+            !TryUpdatePosition(solution_ptr[1], r, next_row, Rows))
         {
-            if (c < Cols - PointSafetyBorder)
-            {
-                next_col++;
-            }
-            else
-            {
-                return false;
-            }
+            return false;
         }
-        if (solution_ptr[1] > MaxSubpixelShift)
-        {
-            if (r < Rows - PointSafetyBorder)
-            {
-                next_row++;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        if (solution_ptr[0] < -MaxSubpixelShift)
-        {
-            if (c > PointSafetyBorder)
-            {
-                next_col--;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        if (solution_ptr[1] < -MaxSubpixelShift)
-        {
-            if (r > PointSafetyBorder)
-                next_row--;
-            else
-                return false;
-        }
+
         if (next_row == r && next_col == c)
         {
             // converged, displacement is sufficiently small, terminate here
