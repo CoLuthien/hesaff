@@ -1,4 +1,4 @@
-# HessianAffineDetector Build Guide
+# HessianAffineDetector Developer Guide
 
 ## Rationale
 
@@ -9,14 +9,14 @@
 1. 일단 우리는 vcpkg가 필요합니다. [링크](https://vcpkg.io/en/getting-started.html)를 따라서 vcpkg를 원하는 디렉토리에 설치하세요. 기본 디렉토리는 "C:/vcpkg" 로 설정했습니다. 변경시 CMakeLists.txt에서 vcpkg 패스를 수정하셔야합니다. 
 
 2.  ```sh
-    # 다음 명령어를 실행하세요.
+    # 의존성 빌드를 위하여 다음 명령어를 실행하세요.
     #at vcpkg installed directory
     ./vcpkg.exe install boost --triplet x64-windows
     ./vcpkg.exe install opencv4[nonfree,contrib,core,cuda,default-features,dnn,jpeg,png,quirc,tiff,webp,tbb,python]:x64-windows
     ```
 
 3. ```sh
-   # 다음 명령어를 실행하면 빌드가 되도록 설정했습니다. 안될시 garam.udev@gmail.com으로 연락주세용
+   # 다음 명령어를 실행하면 빌드가 되도록 설정했습니다. 안될시 garam.udev@gmail.com으로 연락주세요
    cd $(HessianAffineDirectory) 
    mkdir build && cd build
    cmake ../ && cmake --build . --config Release --parallel
