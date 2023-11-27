@@ -49,12 +49,12 @@ bool
 IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t const Col)
 {
     bool       result  = true;
-    auto const RowIter = Row + 1;
-    auto const ColIter = Col + 1;
-    for (int r = Row - 1; r <= RowIter; ++r)
+    auto const RowIter = Row + 2;
+    auto const ColIter = Col + 2;
+    for (int r = Row - 1; r != RowIter; ++r)
     {
         const float* row = Img.ptr<float>(r);
-        for (int c = Col - 1; c <= ColIter; ++c)
+        for (int c = Col - 1; c != ColIter; ++c)
         {
             if (row[c] > Value)
             {
@@ -70,12 +70,12 @@ bool
 IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col)
 {
     bool       result  = true;
-    auto const RowIter = Row + 1;
-    auto const ColIter = Col + 1;
-    for (int r = Row - 1; r <= RowIter; ++r)
+    auto const RowIter = Row + 2;
+    auto const ColIter = Col + 2;
+    for (int r = Row - 1; r != RowIter; ++r)
     {
         const float* row = Img.ptr<float>(r);
-        for (int c = Col - 1; c <= ColIter; ++c)
+        for (int c = Col - 1; c != ColIter; ++c)
         {
             if (row[c] < Value)
             {
@@ -96,8 +96,11 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
     int const SampleWidth  = Img.cols - 1;
     int const SampleHeight = Img.rows - 1;
     // output size
-    int const OutputWidth  = (Result.cols >> 1);
-    int const OutputHeight = (Result.rows >> 1);
+    int const RightEnd = (Result.cols >> 1) + 1;
+    int const TopEnd   = (Result.rows >> 1) + 1;
+
+    int const LeftEnd   = -(Result.cols >> 1);
+    int const BottomEnd = -(Result.rows >> 1);
 
     float const center_row = (float)Center.x;
     float const center_col = (float)Center.y;
@@ -107,11 +110,11 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
 
     float* out           = Result.ptr<float>(0);
     bool   BoundaryTouch = false;
-    for (int Row = -OutputHeight; Row <= OutputHeight; ++Row)
+    for (int Row = BottomEnd; Row < TopEnd; ++Row)
     {
         float const rx = center_row + Row * a12;
         float const ry = center_col + Row * a22;
-        for (int Col = -OutputWidth; Col <= OutputWidth; ++Col)
+        for (int Col = LeftEnd; Col < RightEnd; ++Col)
         {
             float     row_weight = rx + Col * a11;
             float     col_weight = ry + Col * a21;
@@ -270,6 +273,22 @@ PhotometricallyNormalizeImage(cv::InputArray Patch, cv::OutputArray Normalized)
 
     cv::Mat Unclamped = 128. + fac * (Img - mean);
     Unclamped.copyTo(Normalized);
+}
+
+// matrix square root by eigen decomposition
+void
+MatrixSqrt(const cv::Mat& matrix, cv::Mat& sqrtMatrix, cv::Mat& EigenValues)
+{
+    cv::Mat eigenvectors, sqrtvalues, result;
+    cv::eigen(matrix, EigenValues, eigenvectors);
+
+    // Calculate square root of the eigenvalues
+    cv::sqrt(EigenValues, sqrtvalues);
+
+    // Reconstruct the square root matrix
+    result = (eigenvectors * cv::Mat::diag(sqrtvalues) * eigenvectors.inv());
+
+    cv::normalize(result, sqrtMatrix);
 }
 
 } // namespace utils

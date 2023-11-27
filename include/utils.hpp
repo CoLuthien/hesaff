@@ -79,4 +79,7 @@ cv::Mat EstimateStructureTensor(cv::Mat const& Window, cv::Mat const& GradX, cv:
 HA_API
 void PhotometricallyNormalizeImage(cv::InputArray Patch, cv::OutputArray Normalized);
 
+HA_API
+void MatrixSqrt(const cv::Mat& matrix, cv::Mat& sqrtMatrix, cv::Mat& EigenValues);
+
 } // namespace utils

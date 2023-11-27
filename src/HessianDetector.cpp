@@ -170,7 +170,11 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     int   solution_row, solution_col;
     float Response = 0.;
 
-    auto&& calculate_jacobian = [&Prev, &Current, &Next](int const r, int const c) {
+    static constexpr auto&& calculate_jacobian = [](cv::Mat const& Prev,
+                                                    cv::Mat const& Current,
+                                                    cv::Mat const& Next,
+                                                    int const      r,
+                                                    int const      c) {
         float dxx = at<float>(Current, r, c - 1) - 2.0f * at<float>(Current, r, c) +
                     at<float>(Current, r, c + 1);
 
@@ -198,7 +202,11 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         // clang-format on
     };
 
-    auto&& calculate_gradient = [&Prev, &Current, &Next](int const r, int const c) {
+    static constexpr auto&& calculate_gradient = [](cv::Mat const& Prev,
+                                                    cv::Mat const& Current,
+                                                    cv::Mat const& Next,
+                                                    int const      r,
+                                                    int const      c) {
         float dx = -0.5f * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
         float dy = -0.5f * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
         float ds = -0.5f * (at<float>(Next, r, c) - at<float>(Prev, r, c));
@@ -222,14 +230,14 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
                              at<float>(Current, PositionY - 1, PositionX + 1) +
                              at<float>(Current, PositionY - 1, PositionX - 1));
 
-        float edgeScore = (dxx + dyy) * (dxx + dyy) / (dxx * dyy - dxy * dxy);
+        float edgeScore = std::pow(dxx + dyy, 2) / (dxx * dyy - dxy * dxy);
         if (edgeScore > param_detect.edgeScoreThreshold || edgeScore < 0)
         {
             return false;
         }
     }
 
-    auto const&& TryUpdatePosition =
+    static constexpr auto const&& TryUpdatePosition =
         [](float const Shift, int const current_location, int& next_location, int Space) -> bool {
         if (Shift > MaxSubpixelShift)
         {
@@ -261,27 +269,24 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         int const r = NextRow;
         int const c = NextCol;
 
-        cv::Mat System   = calculate_jacobian(r, c);
-        cv::Mat Constant = calculate_gradient(r, c);
+        cv::Mat System   = calculate_jacobian(Prev, Current, Next, r, c);
+        cv::Mat Constant = calculate_gradient(Prev, Current, Next, r, c);
         cv::Mat Solution;
 
-        cv::solve(System, Constant, Solution);
-        auto const* solution_ptr = Solution.ptr<float>();
-        auto const* gradient_ptr = Constant.ptr<float>();
+        bool Success = cv::solve(System, Constant, Solution);
 
-        if (std::isnan(solution_ptr[0]) || std::isnan(solution_ptr[1]) ||
-            std::isnan(solution_ptr[2]))
+        if (!Success)
         {
             return false;
         }
-        auto const value = at<float>(Current, r, c) + 0.5 * (gradient_ptr[0] * solution_ptr[0] +
-                                                             gradient_ptr[1] * solution_ptr[1] +
-                                                             gradient_ptr[2] * solution_ptr[2]);
+        auto const value = at<float>(Current, r, c) + 0.5 * Solution.dot(Constant);
 
         Solution.copyTo(pixel_shift);
         solution_row = r;
         solution_col = c;
         Response     = value;
+
+        auto const* solution_ptr = reinterpret_cast<float*>(Solution.data);
 
         if (!TryUpdatePosition(solution_ptr[0], c, NextCol, Cols) ||
             !TryUpdatePosition(solution_ptr[1], r, NextRow, Rows))
@@ -297,7 +302,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
             break;
         }
     }
-    auto const* shift_ptr        = pixel_shift.ptr<float>(0);
+    auto const* shift_ptr        = reinterpret_cast<float*>(pixel_shift.data);
     bool const  LocalizationTest = std::abs(shift_ptr[0]) > ScaleThreshold ||
                                   std::abs(shift_ptr[1]) > ScaleThreshold ||
                                   std::abs(shift_ptr[2]) > ScaleThreshold;
@@ -315,14 +320,16 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
 
     float scale = CurSigma * std::pow(2., shift_ptr[2] / NumLayers);
 
-    Point.x              = pixelDistance * (solution_col + shift_ptr[0]);
-    Point.y              = pixelDistance * (solution_row + shift_ptr[1]);
-    Point.s              = pixelDistance * scale;
-    Point.response       = Response;
-    Point.orientation    = -1.;
-    Point.pixel_distance = pixelDistance;
-    Point.x_pos          = NextCol;
-    Point.y_pos          = NextRow;
+    Point = {
+        .x              = pixelDistance * (solution_col + shift_ptr[0]),
+        .y              = pixelDistance * (solution_row + shift_ptr[1]),
+        .s              = pixelDistance * scale,
+        .response       = Response,
+        .pixel_distance = pixelDistance,
+        .orientation    = -1.,
+        .y_pos          = NextRow,
+        .x_pos          = NextCol,
+    };
 
     return true;
 }
