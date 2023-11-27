@@ -89,15 +89,18 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
     auto const& Current = CurrentOctave[LayerIdx];
     auto const& Next    = CurrentOctave[LayerIdx + 1];
 
-    auto const border = param_detect.borderSize;
+    auto const Border = param_detect.borderSize;
 
-    auto const rows = Current.rows;
-    auto const cols = Current.cols;
+    auto const Rows = Current.rows;
+    auto const Cols = Current.cols;
 
-    for (int r = border; r < rows - border; ++r)
+    auto const RowIter = Rows - Border;
+    auto const ColIter = Cols - Border;
+
+    for (int r = Border; r < RowIter; ++r)
     {
         auto const* row = Current.ptr<float>(r);
-        for (int c = border; c < cols - border; ++c)
+        for (int c = Border; c < ColIter; ++c)
         {
 
             auto const value = row[c];
@@ -163,7 +166,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     cv::Mat pixel_shift;
 
     bool  converged = false;
-    int   next_row = PositionY, next_col = PositionX;
+    int   NextRow = PositionY, NextCol = PositionX;
     int   solution_row, solution_col;
     float Response = 0.;
 
@@ -255,8 +258,8 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
 
     for (int Iter = 0; Iter < 5; ++Iter)
     {
-        int const r = next_row;
-        int const c = next_col;
+        int const r = NextRow;
+        int const c = NextCol;
 
         cv::Mat System   = calculate_jacobian(r, c);
         cv::Mat Constant = calculate_gradient(r, c);
@@ -280,13 +283,13 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         solution_col = c;
         Response     = value;
 
-        if (!TryUpdatePosition(solution_ptr[0], c, next_col, Cols) ||
-            !TryUpdatePosition(solution_ptr[1], r, next_row, Rows))
+        if (!TryUpdatePosition(solution_ptr[0], c, NextCol, Cols) ||
+            !TryUpdatePosition(solution_ptr[1], r, NextRow, Rows))
         {
             return false;
         }
 
-        if (next_row == r && next_col == c)
+        if (NextRow == r && NextCol == c)
         {
             // converged, displacement is sufficiently small, terminate here
             // TODO: decide if we want only converged local extrema...
@@ -318,8 +321,8 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     Point.response       = Response;
     Point.orientation    = -1.;
     Point.pixel_distance = pixelDistance;
-    Point.x_pos          = next_col;
-    Point.y_pos          = next_row;
+    Point.x_pos          = NextCol;
+    Point.y_pos          = NextRow;
 
     return true;
 }
