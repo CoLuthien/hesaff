@@ -116,8 +116,8 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
                                            utils::IsRegionMin(Current, value, r, c) &&
                                            utils::IsRegionMin(Next, value, r, c);
 
-            if ((BeyondPositiveThreshold && IsRegionalMaximum) ||
-                (BeyondNegativeThreshold && IsRegionalMinimum))
+            if ((BeyondPositiveThreshold & IsRegionalMaximum) |
+                (BeyondNegativeThreshold & IsRegionalMinimum))
             {
                 CandidatePoint Point;
                 if (LocalizeCandidate(Point,
@@ -131,9 +131,10 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
                                       CurrentOctave.PixelDistance,
                                       Pyr.numLayers()))
                 {
-                    auto const* Blur =
-                        CurrentOctave.GetLayerBlur(LayerIdx).ptr<float>(Point.y_pos) + Point.x_pos;
-                    Point.type       = GetHessianPointType(Blur, Point.response);
+                    // auto const* Blur =
+                    // CurrentOctave.GetLayerBlur(LayerIdx).ptr<float>(Point.y_pos) + Point.x_pos;
+                    // Point.type       = GetHessianPointType(Blur, Point.response);// unused remove
+                    // for performance
                     Point.octave_idx = OctaveIdx;
                     Point.layer_idx  = LayerIdx;
                     Result.emplace_back(Point);
@@ -216,27 +217,6 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         return cv::Mat(3, 1, CV_32F, arr.data()).clone();
     };
 
-    {
-        float dxx = at<float>(Current, PositionY, PositionX - 1) -
-                    2.0f * at<float>(Current, PositionY, PositionX) +
-                    at<float>(Current, PositionY, PositionX + 1);
-
-        float dyy = at<float>(Current, PositionY - 1, PositionX) -
-                    2.0f * at<float>(Current, PositionY, PositionX) +
-                    at<float>(Current, PositionY + 1, PositionX);
-
-        float dxy = 0.25f * (at<float>(Current, PositionY + 1, PositionX + 1) -
-                             at<float>(Current, PositionY + 1, PositionX - 1) -
-                             at<float>(Current, PositionY - 1, PositionX + 1) +
-                             at<float>(Current, PositionY - 1, PositionX - 1));
-
-        float edgeScore = std::pow(dxx + dyy, 2) / (dxx * dyy - dxy * dxy);
-        if (edgeScore > param_detect.edgeScoreThreshold || edgeScore < 0)
-        {
-            return false;
-        }
-    }
-
     static constexpr auto const&& TryUpdatePosition =
         [](float const Shift, int const current_location, int& next_location, int Space) -> bool {
         if (Shift > MaxSubpixelShift)
@@ -263,6 +243,27 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         }
         return true;
     };
+
+    {
+        float dxx = at<float>(Current, PositionY, PositionX - 1) -
+                    2.0f * at<float>(Current, PositionY, PositionX) +
+                    at<float>(Current, PositionY, PositionX + 1);
+
+        float dyy = at<float>(Current, PositionY - 1, PositionX) -
+                    2.0f * at<float>(Current, PositionY, PositionX) +
+                    at<float>(Current, PositionY + 1, PositionX);
+
+        float dxy = 0.25f * (at<float>(Current, PositionY + 1, PositionX + 1) -
+                             at<float>(Current, PositionY + 1, PositionX - 1) -
+                             at<float>(Current, PositionY - 1, PositionX + 1) +
+                             at<float>(Current, PositionY - 1, PositionX - 1));
+
+        float edgeScore = std::pow(dxx + dyy, 2) / (dxx * dyy - dxy * dxy);
+        if (edgeScore > param_detect.edgeScoreThreshold || edgeScore < 0)
+        {
+            return false;
+        }
+    }
 
     for (int Iter = 0; Iter < 5; ++Iter)
     {
