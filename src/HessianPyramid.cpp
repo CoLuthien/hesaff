@@ -47,18 +47,8 @@ HessianResponsePyramid ::HessianResponsePyramid(cv::Mat const& Image,
     auto const InitialSigma         = 0.5;
     auto const InitialPixelDistance = 1.;
 
-    cv::Mat Img;
+    cv::Mat Img = Image.clone();
 
-    if (params.initialSigma > InitialSigma)
-    {
-        auto const sigma = std::sqrt(std::pow(params.initialSigma, 2) - std::pow(InitialSigma, 2));
-
-        Img = utils::GaussianBlurRelativeKernel(Image, sigma);
-    }
-    else
-    {
-        Img = Image.clone();
-    }
     auto const Step = std::pow(2., 1. / params.numLayers);
 
     float pix_dist = InitialPixelDistance;
