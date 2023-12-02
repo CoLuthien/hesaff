@@ -24,10 +24,8 @@ struct hash<cv::Point>
 {
     std::size_t operator()(cv::Point const& p) const noexcept
     {
-        std::size_t h1     = std::hash<float>{}(p.x);
-        std::size_t h2     = std::hash<float>{}(p.y);
         std::size_t result = 0;
-        hash_combine(result, h1, h2);
+        hash_combine(result, p.x, p.y);
         return result;
     }
 };
@@ -39,8 +37,7 @@ namespace utils
 HA_API
 cv::Mat GaussianBlurRelativeKernel(cv::Mat const& Img, float const Sigma);
 
-HA_API
-cv::Mat HessianResponse(cv::Mat const& Img, float const Sigma);
+HA_API cv::Mat HessianResponse(cv::Mat const& Img, float const Sigma);
 
 HA_API
 bool IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col);

@@ -3,6 +3,7 @@
 #include "Utils.hpp"
 #include <memory>
 #include <execution>
+#include <chrono>
 
 namespace
 {
@@ -35,7 +36,9 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) 
 {
     HessianResponsePyramid const Pyr(Img, {});
 
+    //auto   from       = std::chrono::steady_clock::now();
     auto&& Candidates = m_detector->DetectCandidates(Pyr);
+    //auto   to         = std::chrono::steady_clock::now();
 
     std::vector<CandidatePoint> Result;
     Result.reserve(Candidates.size());
@@ -54,6 +57,8 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) 
             }
         }
     }
+    //std::chrono::duration<double> time = to - from;
+    //std::cout << time.count() << '\n';
 
     return Result;
 }
@@ -84,9 +89,7 @@ HessianAffineDetector::CalculateDescriptors(std::vector<CandidatePoint> const& c
             cv::KeyPoint(Point.x, Point.y, patch_radius, Point.orientation, Point.response));
     }
 
-    cv::Mat Result(Descs.size(), Descs[0].cols, Descs[0].depth());
-    cv::vconcat(Descs, Result);
-    Result.copyTo(descriptors);
+    cv::vconcat(Descs, descriptors);
 }
 
 void
@@ -108,8 +111,8 @@ HessianAffineDetector::detectAndCompute(cv::InputArray image,
     {
         Image.copyTo(Target);
     }
-
     auto&& ValidCandidates = detectKeypoints(Target, Mask);
+
     CalculateDescriptors(ValidCandidates, keypoints, descriptors);
 }
 

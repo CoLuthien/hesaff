@@ -40,6 +40,72 @@ GetHessianPointType(float const* ptr, float value)
 } // namespace
 namespace ha
 {
+
+static constexpr auto MaxSubpixelShift  = 0.6;
+static constexpr auto PointSafetyBorder = 2;
+static constexpr auto ScaleThreshold    = 1.5;
+auto
+caculate_hessian(
+    cv::Mat const& Prev, cv::Mat const& Current, cv::Mat const& Next, int const r, int const c)
+{
+    float dxx = at<float>(Current, r, c - 1) - 2.0f * at<float>(Current, r, c) +
+                at<float>(Current, r, c + 1);
+
+    float dyy = at<float>(Current, r - 1, c) - 2.0f * at<float>(Current, r, c) +
+                at<float>(Current, r + 1, c);
+
+    float dss = at<float>(Prev, r, c) - 2.0f * at<float>(Current, r, c) + at<float>(Next, r, c);
+
+    float dxy = 0.25f * (at<float>(Current, r + 1, c + 1) - at<float>(Current, r + 1, c - 1) -
+                         at<float>(Current, r - 1, c + 1) + at<float>(Current, r - 1, c - 1));
+
+    float dxs = 0.25f * (at<float>(Next, r, c + 1) - at<float>(Next, r, c - 1) -
+                         at<float>(Prev, r, c + 1) + at<float>(Prev, r, c - 1));
+
+    float dys = 0.25f * (at<float>(Next, r + 1, c) - at<float>(Next, r - 1, c) -
+                         at<float>(Prev, r + 1, c) + at<float>(Prev, r - 1, c));
+
+    return cv::Mat((cv::Mat_<float>(3, 3) << dxx, dxy, dxs, dxy, dyy, dys, dxs, dys, dss));
+};
+
+auto
+calculate_gradient(
+    cv::Mat const& Prev, cv::Mat const& Current, cv::Mat const& Next, int const r, int const c)
+{
+    float dx = -0.5f * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
+    float dy = -0.5f * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
+    float ds = -0.5f * (at<float>(Next, r, c) - at<float>(Prev, r, c));
+    return cv::Mat((cv::Mat_<float>(3, 1) << dx, dy, ds));
+};
+
+auto
+TryUpdatePosition(float const Shift, int const current_location, int& next_location, int Space)
+    -> bool
+{
+    if (Shift > MaxSubpixelShift)
+    {
+        if (current_location < Space - PointSafetyBorder)
+        {
+            next_location++;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    if (Shift < -MaxSubpixelShift)
+    {
+        if (current_location > PointSafetyBorder)
+        {
+            next_location--;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    return true;
+};
 HessianDetectorParams::HessianDetectorParams(int const   inBorderSize,
                                              float const inThreshold,
                                              float const inEdgeEigenValueRatio)
@@ -67,7 +133,10 @@ HessianDetector::FindOctaveCandidates(HessianResponsePyramid const& Pyr,
 {
     std::vector<CandidatePoint>   Result;
     std::unordered_set<cv::Point> VisitMap;
-    for (int LayerIdx = 1; LayerIdx < Pyr.numLayers() - 1; ++LayerIdx)
+
+    auto const numLayers = Pyr.numLayers() - 1;
+
+    for (int LayerIdx = 1; LayerIdx < numLayers; ++LayerIdx)
     {
         auto&& Candidates = FindLayerCandidates(Pyr, Octave, LayerIdx, VisitMap);
         Result.insert(Result.end(), Candidates.begin(), Candidates.end());
@@ -94,7 +163,14 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
     auto const rows = Current.rows;
     auto const cols = Current.cols;
 
-    for (int r = border; r < rows - border; ++r)
+    auto const RowIter = Rows - Border;
+    auto const ColIter = Cols - Border;
+
+    auto const LayerSigma    = CurrentOctave.GetLayerSigma(LayerIdx);
+    auto const LayerDistance = CurrentOctave.PixelDistance;
+    auto const LayerCount    = Pyr.numLayers();
+
+    for (int r = Border; r < RowIter; ++r)
     {
         auto const* row = Current.ptr<float>(r);
         for (int c = border; c < cols - border; ++c)
@@ -117,6 +193,7 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
                 (BeyondNegativeThreshold && IsRegionalMinimum))
             {
                 CandidatePoint Point;
+
                 if (LocalizeCandidate(Point,
                                       VisitMap,
                                       Prev,
@@ -124,9 +201,9 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
                                       Next,
                                       r,
                                       c,
-                                      CurrentOctave.GetLayerSigma(LayerIdx),
-                                      CurrentOctave.PixelDistance,
-                                      Pyr.numLayers()))
+                                      LayerSigma,
+                                      LayerDistance,
+                                      LayerCount))
                 {
                     auto const* Blur =
                         CurrentOctave.GetLayerBlur(LayerIdx).ptr<float>(Point.y_pos) + Point.x_pos;
@@ -153,9 +230,6 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
                                    float const                    pixelDistance,
                                    int const                      NumLayers) const
 {
-    static constexpr auto MaxSubpixelShift  = 0.6;
-    static constexpr auto PointSafetyBorder = 2;
-    static constexpr auto ScaleThreshold    = 1.5;
 
     int const Cols = Current.cols;
     int const Rows = Current.rows;
@@ -166,44 +240,6 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     int   next_row = PositionY, next_col = PositionX;
     int   solution_row, solution_col;
     float Response = 0.;
-
-    auto&& calculate_jacobian = [&Prev, &Current, &Next](int const r, int const c) {
-        float dxx = at<float>(Current, r, c - 1) - 2.0f * at<float>(Current, r, c) +
-                    at<float>(Current, r, c + 1);
-
-        float dyy = at<float>(Current, r - 1, c) - 2.0f * at<float>(Current, r, c) +
-                    at<float>(Current, r + 1, c);
-
-        float dss = at<float>(Prev, r, c) - 2.0f * at<float>(Current, r, c) + at<float>(Next, r, c);
-
-        float dxy = 0.25f * (at<float>(Current, r + 1, c + 1) - at<float>(Current, r + 1, c - 1) -
-                             at<float>(Current, r - 1, c + 1) + at<float>(Current, r - 1, c - 1));
-
-        float dxs = 0.25f * (at<float>(Next, r, c + 1) - at<float>(Next, r, c - 1) -
-                             at<float>(Prev, r, c + 1) + at<float>(Prev, r, c - 1));
-
-        float dys = 0.25f * (at<float>(Next, r + 1, c) - at<float>(Next, r - 1, c) -
-                             at<float>(Prev, r + 1, c) + at<float>(Prev, r - 1, c));
-
-        // clang-format off
-        auto&& vec = std::array{
-            dxx, dxy, dxs,
-            dxy, dyy, dys,
-            dxs, dys, dss,
-        };
-        return cv::Mat(3, 3, CV_32F, vec.data()).clone();
-        // clang-format on
-    };
-
-    auto&& calculate_gradient = [&Prev, &Current, &Next](int const r, int const c) {
-        float dx = -0.5f * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
-        float dy = -0.5f * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
-        float ds = -0.5f * (at<float>(Next, r, c) - at<float>(Prev, r, c));
-
-        auto&& arr = std::array{dx, dy, ds};
-
-        return cv::Mat(3, 1, CV_32F, arr.data()).clone();
-    };
 
     {
         float dxx = at<float>(Current, PositionY, PositionX - 1) -
@@ -231,67 +267,30 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         int const r = next_row;
         int const c = next_col;
 
-        cv::Mat System   = calculate_jacobian(r, c);
-        cv::Mat Constant = calculate_gradient(r, c);
+        cv::Mat Hessian  = caculate_hessian(Prev, Current, Next, r, c);
+        cv::Mat Gradient = calculate_gradient(Prev, Current, Next, r, c);
         cv::Mat Solution;
 
-        cv::solve(System, Constant, Solution);
-        auto const* solution_ptr = Solution.ptr<float>();
-        auto const* gradient_ptr = Constant.ptr<float>();
+        bool Success = cv::solve(Hessian, Gradient, Solution);
 
         if (std::isnan(solution_ptr[0]) || std::isnan(solution_ptr[1]) ||
             std::isnan(solution_ptr[2]))
         {
             return false;
         }
-        auto const value = at<float>(Current, r, c) + 0.5 * (gradient_ptr[0] * solution_ptr[0] +
-                                                             gradient_ptr[1] * solution_ptr[1] +
-                                                             gradient_ptr[2] * solution_ptr[2]);
+        auto const value = at<float>(Current, r, c) + 0.5 * Solution.dot(Gradient);
 
         Solution.copyTo(pixel_shift);
         solution_row = r;
         solution_col = c;
         Response     = value;
 
-        if (solution_ptr[0] > MaxSubpixelShift)
+        auto const* solution_ptr = reinterpret_cast<float*>(Solution.data);
+
+        if (!TryUpdatePosition(solution_ptr[0], c, NextCol, Cols) |
+            !TryUpdatePosition(solution_ptr[1], r, NextRow, Rows))
         {
-            if (c < Cols - PointSafetyBorder)
-            {
-                next_col++;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        if (solution_ptr[1] > MaxSubpixelShift)
-        {
-            if (r < Rows - PointSafetyBorder)
-            {
-                next_row++;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        if (solution_ptr[0] < -MaxSubpixelShift)
-        {
-            if (c > PointSafetyBorder)
-            {
-                next_col--;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        if (solution_ptr[1] < -MaxSubpixelShift)
-        {
-            if (r > PointSafetyBorder)
-                next_row--;
-            else
-                return false;
+            return false;
         }
         if (next_row == r && next_col == c)
         {
@@ -306,10 +305,10 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
                                   std::abs(shift_ptr[1]) > ScaleThreshold ||
                                   std::abs(shift_ptr[2]) > ScaleThreshold;
     bool const ResponseTest   = std::abs(Response) < param_detect.finalThreshold;
-    bool const AlreadyVisited = VisitMap.contains(cv::Point(solution_row, solution_col));
+    bool const AlreadyVisited = VisitMap.contains(cv::Point(solution_col, solution_row));
 
     // if spatial localization was all right and the scale is close enough...
-    if (AlreadyVisited || LocalizationTest || ResponseTest)
+    if (AlreadyVisited | LocalizationTest | ResponseTest)
     {
         return false;
     }
@@ -335,7 +334,8 @@ std::vector<CandidatePoint>
 HessianDetector::DetectCandidates(HessianResponsePyramid const& Pyr) const
 {
     std::vector<CandidatePoint> Result;
-    for (int OctaveIdx = 0; OctaveIdx < Pyr.numOctaves(); ++OctaveIdx)
+    auto const                  numOctaves = Pyr.numOctaves();
+    for (int OctaveIdx = 0; OctaveIdx != numOctaves; ++OctaveIdx)
     {
         auto&& Candidates = FindOctaveCandidates(Pyr, OctaveIdx);
         Result.insert(Result.end(), Candidates.begin(), Candidates.end());
