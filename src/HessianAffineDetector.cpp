@@ -80,9 +80,8 @@ HessianAffineDetector::CalculateDescriptors(std::vector<CandidatePoint> const& c
             cv::KeyPoint{x, y, patch_radius, Point.orientation, Point.response},
         };
         cv::Mat Desc;
-        cv::Mat Img;
-        cv::normalize(Point.Patch, Img, 0, 255, cv::NORM_MINMAX, CV_8U);
-        m_backend->compute(Img, Location, Desc);
+        cv::Mat Img, Tmp;
+        m_backend->compute(Point.Patch, Location, Desc);
         Descs.emplace_back(std::move(Desc));
 
         keypoints.emplace_back(

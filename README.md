@@ -1,11 +1,61 @@
+# HessianAffineDetector Developer Guide
 
+## Rationale
+
+아직 박사님의 코드가 다 해독된게 아니기 때문에 자세한 설명은 생략하겠습니다 ><
+
+## Windows
+
+1. 일단 우리는 vcpkg가 필요합니다. [링크](https://vcpkg.io/en/getting-started.html)를 따라서 vcpkg를 원하는 디렉토리에 설치하세요. 기본 디렉토리는 "C:/vcpkg" 로 설정했습니다. 변경시 CMakeLists.txt에서 vcpkg 패스를 수정하셔야합니다. 
+
+2.  ```sh
+    # 의존성 빌드를 위하여 다음 명령어를 실행하세요.
+    #at vcpkg installed directory
+    ./vcpkg.exe install boost --triplet x64-windows
+    ./vcpkg.exe install opencv4[nonfree,contrib,core,cuda,default-features,dnn,jpeg,png,quirc,tiff,webp,tbb,python]:x64-windows
+    ```
+
+3. ```sh
+   # 다음 명령어를 실행하면 빌드가 되도록 설정했습니다. 안될시 garam.udev@gmail.com으로 연락주세요
+   cd $(HessianAffineDirectory) 
+   mkdir build && cd build
+   cmake ../ && cmake --build . --config Release --parallel
+   ```
+
+## Linux
+
+1. 아직 안됐습니다. :( 
+
+## Usage
+
+```cpp
+
+#include "sift_extractor.hpp"
 #include "HessianPyramid.hpp"
 #include "HessianDetector.hpp"
 #include "HessianAffineDetector.hpp"
 #include "AffineDeformer.hpp"
+#include <filesystem>
 
-static constexpr auto path  = "C:/Users/bumdo/workspace/rcautomation/Images/DJI_0316.JPG";
-static constexpr auto path2 = "C:/Users/bumdo/workspace/rcautomation/Images/DJI_0317.JPG";
+auto path  = "PathToFile1.JPG";
+auto path2 = "PathToFile2.JPG"
+class SURFExtractor : public ha::FeatureExtractor
+{
+public:
+    SURFExtractor() { m_backend = cv::xfeatures2d::SURF::create(100, 4, 3, true); }
+
+public:
+    virtual void compute(cv::InputArray             Image,
+                         std::vector<cv::KeyPoint>& keypoints,
+                         cv::OutputArray            descriptors) override
+    {
+        m_backend->compute(Image, keypoints, descriptors);
+    }
+
+private:
+    cv::Ptr<cv::Feature2D> m_backend;
+};
+
 int
 main()
 {
@@ -23,7 +73,7 @@ main()
 
     auto matcher = cv::BFMatcher::create();
 
-    ha::HessianAffineDetector adet(cv::SIFT::create(), {});
+    ha::HessianAffineDetector adet(std::make_shared<SURFExtractor>());
     {
         cv::Mat Desc1, Desc2;
 
@@ -74,8 +124,11 @@ main()
                         cv::Scalar::all(-1),
                         Mask,
                         cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-
-        cv::imshow("W", View);
-        cv::waitKey(-1);
+        auto path = std::filesystem::current_path().string() + "/out.jpg";
+        cv::imwrite(path, View);
     }
 }
+```
+
+
+

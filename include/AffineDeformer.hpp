@@ -24,7 +24,7 @@ struct HA_API AffineDeformerParams
 
     // amount of smoothing applied to the initial level of first octave
     float const convergenceThreshold = .05;
-    float const initialSigma         = 1.6;
+    float const initialSigma         = 4.;
     // size of the measurement region (as multiple of the feature scale)
     float const mrSize = 3.f * std::sqrtf(3);
 };
