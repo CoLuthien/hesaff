@@ -26,7 +26,7 @@ GaussianBlurRelativeKernel(cv::Mat const& Img, float const Sigma)
     }
 
     cv::Mat Result;
-    cv::GaussianBlur(Img, Result, {size, size}, Sigma, Sigma, cv::BORDER_REPLICATE);
+    cv::GaussianBlur(Img, Result, {size, size}, Sigma, Sigma, cv::BORDER_CONSTANT);
 
     return std::move(Result);
 }
@@ -168,7 +168,7 @@ ComputeGaussianMask(std::size_t const size)
     }
     cv::Mat Mask(MaskSize, MaskSize, CV_32FC1);
 
-    float sigma  = MaskSize / 3.0f;
+    float sigma  = MaskSize / 6.0f;
     float sigma2 = -2.0f * std::pow(sigma, 2);
 
     auto const size_x = Mask.cols;
@@ -186,8 +186,9 @@ ComputeGaussianMask(std::size_t const size)
             0 1 2 3 4 ... half_x - 1 , half_x, half_x -1 , .... 3, 2, 1, 0
             same for y
             */
-            auto const x              = std::abs(std::abs(half_x - row) - half_x);
-            auto const y              = std::abs(std::abs(half_y - col) - half_y);
+            auto const x = std::abs(std::abs(half_x - row) - half_x);
+            auto const y = std::abs(std::abs(half_y - col) - half_y);
+
             auto const Numerator      = -(std::pow(x, 2) + std::pow(y, 2));
             at<float>(Mask, row, col) = std::exp(Numerator / sigma2);
         }
@@ -249,14 +250,12 @@ IsSampleTouchBorder(cv::Size const  ImgSize,
 cv::Mat
 EstimateStructureTensor(cv::Mat const& Window, cv::Mat const& GradX, cv::Mat const& GradY)
 {
-    auto       area = Window.cols * Window.rows;
-    auto       a    = cv::sum(GradX.mul(GradX).mul(Window)) / area;
-    auto       b    = cv::sum(GradY.mul(GradY).mul(Window)) / area;
-    auto       c    = cv::sum(GradX.mul(GradY).mul(Window)) / area;
-    std::array arr  = {a[0], c[0], c[0], b[0]};
+    auto area = Window.cols * Window.rows;
+    auto a    = cv::sum(GradX.mul(GradX).mul(Window)) / area;
+    auto b    = cv::sum(GradY.mul(GradY).mul(Window)) / area;
+    auto c    = cv::sum(GradX.mul(GradY).mul(Window)) / area;
 
-    cv::Mat Result(2, 2, CV_64F, arr.data());
-    return Result.clone();
+    return (cv::Mat_<double>(2, 2) << a[0], c[0], c[0], b[0]);
 }
 
 void
@@ -264,15 +263,18 @@ PhotometricallyNormalizeImage(cv::InputArray Patch, cv::OutputArray Normalized)
 {
     auto Img = Patch.getMat();
 
-    auto mean = cv::mean(Img);
+    cv::Mat tmp;
+    auto    mean = cv::mean(Img);
+    double  min, max;
+    cv::minMaxLoc(Img, &min, &max);
 
-    auto var      = (mean - Img).mul(mean - Img);
-    auto variance = cv::mean(var);
+    auto fac = 1. / (max - min);
+    cv::exp(-(Img - mean) * fac, tmp);
 
-    double fac = (50. / variance).val[0];
+    auto Denorm = 1 / (1 + tmp);
 
-    cv::Mat Unclamped = 128. + fac * (Img - mean);
-    Unclamped.copyTo(Normalized);
+    cv::Mat Out = 255 * Denorm;
+    Out.copyTo(Normalized);
 }
 
 // matrix square root by eigen decomposition

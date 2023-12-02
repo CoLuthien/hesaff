@@ -208,7 +208,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         // leave +1 border for the bilinear interpolation
         patchImageSize += 2;
         cv::Mat     Sample(patchImageSize, patchImageSize, CV_32F);
-        auto const* DeformMatrix = Point.AffineDeformation.ptr<float>(0);
+        auto const* DeformMatrix = reinterpret_cast<float*>(Point.AffineDeformation.data);
 
         auto TouchBorder = utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Sample);
         if (TouchBorder == false)

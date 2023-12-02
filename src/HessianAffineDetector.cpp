@@ -36,9 +36,7 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) 
 {
     HessianResponsePyramid const Pyr(Img, {});
 
-    // auto   from       = std::chrono::steady_clock::now();
     auto&& Candidates = m_detector->DetectCandidates(Pyr);
-    // auto   to         = std::chrono::steady_clock::now();
 
     std::vector<CandidatePoint> Result;
     Result.reserve(Candidates.size());
@@ -57,8 +55,6 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) 
             }
         }
     }
-    // std::chrono::duration<double> time = to - from;
-    // std::cout << time.count() << '\n';
 
     return Result;
 }

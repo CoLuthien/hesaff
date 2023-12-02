@@ -9,8 +9,8 @@ namespace ha
 struct HessianResponsePyramidParams
 {
 public:
-    int   numOctaves   = 5;   // number of half scaled image for octaves
-    int   numLayers    = 7;   // amount of gaussian blurred image for each Hessian Octave
+    int   numOctaves   = 5;  // number of half scaled image for octaves
+    int   numLayers    = 7;  // amount of gaussian blurred image for each Hessian Octave
     float initialSigma = 4.; // amount of smoothing applied to the initial level of first octave
 };
 
@@ -51,9 +51,9 @@ public:
     HessianResponseOctave const& operator[](std::size_t Idx) const { return m_octaves[Idx]; }
 
 public:
-    auto numOctaves() const { return params.numOctaves; }
-    auto numLayers() const { return params.numLayers; }
-    auto initialSigma() const { return params.initialSigma; }
+    auto numOctaves() const noexcept { return params.numOctaves; }
+    auto numLayers() const noexcept { return params.numLayers; }
+    auto initialSigma() const noexcept { return params.initialSigma; }
 
 private:
     std::vector<HessianResponseOctave> m_octaves;
