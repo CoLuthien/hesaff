@@ -42,7 +42,7 @@ HessianResponse(cv::Mat const& Img, float const Sigma)
 
     auto const norm = std::pow(Sigma, 2);
 
-    return (Jxx.mul(Jyy) - Jxy.mul(Jxy)) * norm;
+    return std::move((Jxx.mul(Jyy) - Jxy.mul(Jxy)) * norm);
 }
 
 bool

@@ -44,39 +44,60 @@ namespace ha
 static constexpr auto MaxSubpixelShift  = 0.6;
 static constexpr auto PointSafetyBorder = 2;
 static constexpr auto ScaleThreshold    = 1.5;
+
+template <typename F>
 auto
 caculate_hessian(
     cv::Mat const& Prev, cv::Mat const& Current, cv::Mat const& Next, int const r, int const c)
 {
-    float dxx = at<float>(Current, r, c - 1) - 2.0f * at<float>(Current, r, c) +
-                at<float>(Current, r, c + 1);
+    F dxx = at<F>(Current, r, c - 1) - 2. * at<F>(Current, r, c) + at<F>(Current, r, c + 1);
 
-    float dyy = at<float>(Current, r - 1, c) - 2.0f * at<float>(Current, r, c) +
-                at<float>(Current, r + 1, c);
+    F dyy = at<F>(Current, r - 1, c) - 2.0f * at<F>(Current, r, c) + at<F>(Current, r + 1, c);
 
-    float dss = at<float>(Prev, r, c) - 2.0f * at<float>(Current, r, c) + at<float>(Next, r, c);
+    F dss = at<F>(Prev, r, c) - 2.0f * at<F>(Current, r, c) + at<F>(Next, r, c);
 
-    float dxy = 0.25f * (at<float>(Current, r + 1, c + 1) - at<float>(Current, r + 1, c - 1) -
-                         at<float>(Current, r - 1, c + 1) + at<float>(Current, r - 1, c - 1));
+    F dxy = 0.25f * (at<F>(Current, r + 1, c + 1) - at<F>(Current, r + 1, c - 1) -
+                     at<F>(Current, r - 1, c + 1) + at<F>(Current, r - 1, c - 1));
 
-    float dxs = 0.25f * (at<float>(Next, r, c + 1) - at<float>(Next, r, c - 1) -
-                         at<float>(Prev, r, c + 1) + at<float>(Prev, r, c - 1));
+    F dxs = 0.25f * (at<F>(Next, r, c + 1) - at<F>(Next, r, c - 1) - at<F>(Prev, r, c + 1) +
+                     at<F>(Prev, r, c - 1));
 
-    float dys = 0.25f * (at<float>(Next, r + 1, c) - at<float>(Next, r - 1, c) -
-                         at<float>(Prev, r + 1, c) + at<float>(Prev, r - 1, c));
+    F dys = 0.25f * (at<F>(Next, r + 1, c) - at<F>(Next, r - 1, c) - at<F>(Prev, r + 1, c) +
+                     at<F>(Prev, r - 1, c));
 
-    return cv::Mat((cv::Mat_<float>(3, 3) << dxx, dxy, dxs, dxy, dyy, dys, dxs, dys, dss));
+    return cv::Mat((cv::Mat_<F>(3, 3) << dxx, dxy, dxs, dxy, dyy, dys, dxs, dys, dss));
 };
 
+template <typename F>
 auto
 calculate_gradient(
     cv::Mat const& Prev, cv::Mat const& Current, cv::Mat const& Next, int const r, int const c)
 {
-    float dx = -0.5f * (at<float>(Current, r, c + 1) - at<float>(Current, r, c - 1));
-    float dy = -0.5f * (at<float>(Current, r + 1, c) - at<float>(Current, r - 1, c));
-    float ds = -0.5f * (at<float>(Next, r, c) - at<float>(Prev, r, c));
-    return cv::Mat((cv::Mat_<float>(3, 1) << dx, dy, ds));
+    F dx = -0.5f * (at<F>(Current, r, c + 1) - at<F>(Current, r, c - 1));
+    F dy = -0.5f * (at<F>(Current, r + 1, c) - at<F>(Current, r - 1, c));
+    F ds = -0.5f * (at<F>(Next, r, c) - at<F>(Prev, r, c));
+    return cv::Mat((cv::Mat_<F>(3, 1) << dx, dy, ds));
 };
+
+template <typename F>
+auto
+calculate_edge_score(cv::Mat const& Current, int const PositionY, int const PositionX)
+{
+    float dxx = at<F>(Current, PositionY, PositionX - 1) -
+                2.0f * at<F>(Current, PositionY, PositionX) +
+                at<F>(Current, PositionY, PositionX + 1);
+
+    float dyy = at<F>(Current, PositionY - 1, PositionX) -
+                2.0f * at<F>(Current, PositionY, PositionX) +
+                at<F>(Current, PositionY + 1, PositionX);
+
+    float dxy = 0.25f * (at<F>(Current, PositionY + 1, PositionX + 1) -
+                         at<F>(Current, PositionY + 1, PositionX - 1) -
+                         at<F>(Current, PositionY - 1, PositionX + 1) +
+                         at<F>(Current, PositionY - 1, PositionX - 1));
+
+    return std::pow(dxx + dyy, 2) / (dxx * dyy - dxy * dxy);
+}
 
 auto
 TryUpdatePosition(float const Shift, int const current_location, int& next_location, int Space)
@@ -106,6 +127,7 @@ TryUpdatePosition(float const Shift, int const current_location, int& next_locat
     }
     return true;
 };
+
 HessianDetectorParams::HessianDetectorParams(int const   inBorderSize,
                                              float const inThreshold,
                                              float const inEdgeEigenValueRatio)
@@ -181,12 +203,12 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
             bool const BeyondPositiveThreshold = (value > param_detect.positiveThreshold);
             bool const BeyondNegativeThreshold = (value < param_detect.negativeThreshold);
 
-            bool const IsRegionalMaximum = utils::IsRegionMax(Prev, value, r, c) &&
-                                           utils::IsRegionMax(Current, value, r, c) &&
+            bool const IsRegionalMaximum = utils::IsRegionMax(Prev, value, r, c) &
+                                           utils::IsRegionMax(Current, value, r, c) &
                                            utils::IsRegionMax(Next, value, r, c);
 
-            bool const IsRegionalMinimum = utils::IsRegionMin(Prev, value, r, c) &&
-                                           utils::IsRegionMin(Current, value, r, c) &&
+            bool const IsRegionalMinimum = utils::IsRegionMin(Prev, value, r, c) &
+                                           utils::IsRegionMin(Current, value, r, c) &
                                            utils::IsRegionMin(Next, value, r, c);
 
             if ((BeyondPositiveThreshold & IsRegionalMaximum) |
@@ -235,6 +257,11 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     int const Cols = Current.cols;
     int const Rows = Current.rows;
 
+    if (VisitMap.contains(cv::Point(PositionX, PositionY)))
+    {
+        return false;
+    }
+
     cv::Mat pixel_shift;
 
     bool  converged = false;
@@ -242,25 +269,10 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     int   solution_row, solution_col;
     float Response = 0.;
 
+    float edgeScore = calculate_edge_score<float>(Current, PositionY, PositionX);
+    if (edgeScore > param_detect.edgeScoreThreshold || edgeScore < 0)
     {
-        float dxx = at<float>(Current, PositionY, PositionX - 1) -
-                    2.0f * at<float>(Current, PositionY, PositionX) +
-                    at<float>(Current, PositionY, PositionX + 1);
-
-        float dyy = at<float>(Current, PositionY - 1, PositionX) -
-                    2.0f * at<float>(Current, PositionY, PositionX) +
-                    at<float>(Current, PositionY + 1, PositionX);
-
-        float dxy = 0.25f * (at<float>(Current, PositionY + 1, PositionX + 1) -
-                             at<float>(Current, PositionY + 1, PositionX - 1) -
-                             at<float>(Current, PositionY - 1, PositionX + 1) +
-                             at<float>(Current, PositionY - 1, PositionX - 1));
-
-        float edgeScore = std::pow(dxx + dyy, 2) / (dxx * dyy - dxy * dxy);
-        if (edgeScore > param_detect.edgeScoreThreshold || edgeScore < 0)
-        {
-            return false;
-        }
+        return false;
     }
 
     for (int Iter = 0; Iter < 5; ++Iter)
@@ -268,18 +280,15 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         int const r = NextRow;
         int const c = NextCol;
 
-        cv::Mat Hessian  = caculate_hessian(Prev, Current, Next, r, c);
-        cv::Mat Gradient = calculate_gradient(Prev, Current, Next, r, c);
+        cv::Mat Hessian  = caculate_hessian<float>(Prev, Current, Next, r, c);
+        cv::Mat Gradient = calculate_gradient<float>(Prev, Current, Next, r, c);
         cv::Mat Solution;
 
-        bool Success = cv::solve(Hessian, Gradient, Solution);
-
-        if (!Success)
+        if (cv::solve(Hessian, Gradient, Solution) == false)
         {
             return false;
         }
         auto const value = at<float>(Current, r, c) + 0.5 * Solution.dot(Gradient);
-
         Solution.copyTo(pixel_shift);
         solution_row = r;
         solution_col = c;
@@ -309,7 +318,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     bool const AlreadyVisited = VisitMap.contains(cv::Point(solution_col, solution_row));
 
     // if spatial localization was all right and the scale is close enough...
-    if (AlreadyVisited | LocalizationTest | ResponseTest)
+    if (AlreadyVisited | LocalizationTest | ResponseTest | !converged)
     {
         return false;
     }

@@ -106,7 +106,7 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
                                       cv::Mat&                      AffineDeformation) const
 {
 
-    auto const& Img = Pyr[Point.octave_idx].GetLayerBlur(Point.layer_idx - 1);
+    auto const& Img = Pyr[Point.octave_idx].GetLayerBlur(Point.layer_idx);
 
     float u11 = 1.0f, u12 = 0.0f, u21 = 0.0f, u22 = 1.0f, eig_1 = 1.0f, eig_2 = 1.0f;
 
@@ -128,16 +128,13 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
     {
         float TempDeform[4] = {u11 * ratio, u12 * ratio, u21 * ratio, u22 * ratio};
         utils::SampleDeformAndInterpolate(Img, {width, height}, TempDeform, Sample);
-        float        a = 0, b = 0, c = 0;
-        float const* MaskPtr  = GaussisanMask.ptr<float>(0);
-        float*       GradxPtr = grad_x.ptr<float>(0);
-        float*       GradyPtr = grad_y.ptr<float>(0);
 
         utils::ComputeGradient(Sample, grad_x, grad_y);
 
         // estimate SMM, second moment matrix
         auto SMM = utils::EstimateStructureTensor(GaussisanMask, grad_x, grad_y);
 
+        float a = 0, b = 0, c = 0;
         a = at<double>(SMM, 0, 0);
         b = at<double>(SMM, 0, 1);
         c = at<double>(SMM, 1, 1);
@@ -162,12 +159,15 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
         cv::Mat Deform(2, 2, CV_32F, deform_matrix);
         if (cv::eigen(Deform, Eig) == false)
         {
-            break;
+            return false;
         }
         eig_1 = Eig.at<float>(0);
         eig_2 = Eig.at<float>(1);
         // leave on too high anisotropy
-        if ((eig_1 / eig_2 > 6) || (eig_2 / eig_1 > 6)) break;
+        if ((eig_1 / eig_2 > 6) || (eig_2 / eig_1 > 6))
+        {
+            return false;
+        }
 
         if (eigen_ratio_act < params.convergenceThreshold &&
             eigen_ratio_bef < params.convergenceThreshold)

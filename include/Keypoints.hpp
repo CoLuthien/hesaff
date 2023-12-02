@@ -17,7 +17,7 @@ public:
     float response;
     float pixel_distance;
     float orientation;
-    int   type;
+    int    type;
 
 public:
     cv::Mat AffineDeformation;
