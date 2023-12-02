@@ -26,7 +26,7 @@ GaussianBlurRelativeKernel(cv::Mat const& Img, float const Sigma)
     }
 
     cv::Mat Result;
-    cv::GaussianBlur(Img, Result, {size, size}, Sigma, Sigma, cv::BORDER_CONSTANT);
+    cv::GaussianBlur(Img, Result, {size, size}, Sigma, Sigma, cv::BORDER_ISOLATED);
 
     return std::move(Result);
 }

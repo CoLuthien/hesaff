@@ -161,18 +161,20 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
         {
             return false;
         }
-        eig_1 = Eig.at<float>(0);
-        eig_2 = Eig.at<float>(1);
+        auto const* EigPtr = reinterpret_cast<float*>(Eig.data);
+
+        eig_1 = EigPtr[0];
+        eig_2 = EigPtr[1];
         // leave on too high anisotropy
-        if ((eig_1 / eig_2 > 6) || (eig_2 / eig_1 > 6))
+        if ((eig_1 / eig_2 > 6.) | (eig_2 / eig_1 > 6.))
         {
             return false;
         }
 
-        if (eigen_ratio_act < params.convergenceThreshold &&
+        if (eigen_ratio_act < params.convergenceThreshold &
             eigen_ratio_bef < params.convergenceThreshold)
         {
-            cv::Mat(2, 2, CV_32F, deform_matrix).copyTo(AffineDeformation);
+            AffineDeformation = (cv::Mat_<float>(2, 2) << u11, u12, u21, u22);
             return true;
         }
     }
@@ -187,8 +189,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
 {
 
     auto const& Img = Pyr[Point.octave_idx].GetLayerBlur(Point.layer_idx);
-    auto const  det = cv::determinant(Point.AffineDeformation);
-    assert((det - 1) < 1e-2);
+    assert((cv::determinant(Point.AffineDeformation) - 1) < 1e-2);
     // half patch size in pixels of image
     float mrScale = std::ceil(Point.s * params.mrSize);
 
@@ -232,12 +233,8 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
     }
     else
     {
-        float DeformMatrix[4];
-        std::memcpy(DeformMatrix, Point.AffineDeformation.ptr<float>(0), 4 * sizeof(float));
-        DeformMatrix[0] *= imageToPatchScale;
-        DeformMatrix[1] *= imageToPatchScale;
-        DeformMatrix[2] *= imageToPatchScale;
-        DeformMatrix[3] *= imageToPatchScale;
+        cv::Mat     Tmp          = Point.AffineDeformation * imageToPatchScale;
+        auto const* DeformMatrix = reinterpret_cast<float*>(Tmp.data);
 
         cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
         utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Result);

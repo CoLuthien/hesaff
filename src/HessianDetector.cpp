@@ -133,8 +133,8 @@ HessianDetectorParams::HessianDetectorParams(int const   inBorderSize,
                                              float const inEdgeEigenValueRatio)
     : Threshold(inThreshold), EdgeEigenValueRatio(inEdgeEigenValueRatio), borderSize(inBorderSize),
       edgeScoreThreshold(std::pow(EdgeEigenValueRatio + 1., 2) / EdgeEigenValueRatio),
-      finalThreshold(std::pow(inThreshold, 2)), positiveThreshold(.8 * finalThreshold),
-      negativeThreshold(-positiveThreshold)
+      finalThreshold(std::pow(inThreshold, 2)), positiveThreshold(.8 * std::pow(inThreshold, 2)),
+      negativeThreshold(-.8 * std::pow(inThreshold, 2))
 
 {
 }
