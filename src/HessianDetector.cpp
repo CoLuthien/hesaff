@@ -166,9 +166,6 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
     auto const RowIter = Rows - Border;
     auto const ColIter = Cols - Border;
 
-    auto const RowIter = Rows - Border;
-    auto const ColIter = Cols - Border;
-
     auto const LayerSigma    = CurrentOctave.GetLayerSigma(LayerIdx);
     auto const LayerDistance = CurrentOctave.PixelDistance;
     auto const LayerCount    = Pyr.numLayers();
