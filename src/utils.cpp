@@ -5,7 +5,7 @@ namespace
 {
 
 template <typename T>
-T&
+inline T&
 at(cv::Mat const& Img, int const width, int const Height)
 {
     auto const* Ptr = Img.data;
@@ -95,60 +95,35 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
 {
     int const SampleWidth  = Img.cols - 1;
     int const SampleHeight = Img.rows - 1;
-    // output size
-    int const RightEnd = (Result.cols >> 1) + 1;
-    int const TopEnd   = (Result.rows >> 1) + 1;
+    int const RightEnd     = (Result.cols >> 1);
+    int const TopEnd       = (Result.rows >> 1);
+    int const LeftEnd      = -(Result.cols >> 1);
+    int const BottomEnd    = -(Result.rows >> 1);
 
-    int const LeftEnd   = -(Result.cols >> 1);
-    int const BottomEnd = -(Result.rows >> 1);
-
-    float const center_row = (float)Center.x;
-    float const center_col = (float)Center.y;
+    float const center_row = static_cast<float>(Center.x);
+    float const center_col = static_cast<float>(Center.y);
 
     float const a11 = DeformMatrix[0], a12 = DeformMatrix[1], a21 = DeformMatrix[2],
                 a22 = DeformMatrix[3];
 
-    float* out           = Result.ptr<float>(0);
-    bool   BoundaryTouch = false;
+    cv::Mat map_x(Result.size(), CV_32F);
+    cv::Mat map_y(Result.size(), CV_32F);
+
     for (int Row = BottomEnd; Row < TopEnd; ++Row)
     {
-        float const rx = center_row + Row * a12;
-        float const ry = center_col + Row * a22;
         for (int Col = LeftEnd; Col < RightEnd; ++Col)
         {
-            float     row_weight = rx + Col * a11;
-            float     col_weight = ry + Col * a21;
-            int const x          = (int)std::floor(row_weight);
-            int const y          = (int)std::floor(col_weight);
+            float rx = center_row + Row * a12 + Col * a11;
+            float ry = center_col + Row * a22 + Col * a21;
 
-            int clamed_x = std::clamp(x, 0, SampleWidth - 1);
-            int clamed_y = std::clamp(y, 0, SampleHeight - 1);
-
-            if (clamed_x == x && clamed_y == y)
-            {
-                row_weight        = row_weight - x;
-                col_weight        = col_weight - y;
-                auto const a_coef = (1.0f - col_weight);
-
-                auto const a_term = a_coef * ((1.0f - row_weight) * at<float>(Img, y, x) +
-                                              row_weight * at<float>(Img, y, x + 1));
-
-                auto const b_term = (col_weight) * ((1. - row_weight) * at<float>(Img, y + 1, x) +
-                                                    row_weight * at<float>(Img, y + 1, x + 1));
-
-                *out = a_term + b_term;
-                out++;
-            }
-            else
-            {
-                *out = 0;
-                out++;
-                BoundaryTouch = true;
-            }
+            at<float>(map_x, Row + TopEnd, Col + RightEnd) = rx;
+            at<float>(map_y, Row + TopEnd, Col + RightEnd) = ry;
         }
     }
+    cv::remap(Img, Result, map_x, map_y, cv::INTER_AREA, cv::BORDER_CONSTANT);
 
-    return BoundaryTouch;
+    // Check for boundary touch
+    return cv::countNonZero(Result == 0) > 0;
 }
 
 void
