@@ -25,7 +25,7 @@ struct hash<cv::Point>
     std::size_t operator()(cv::Point const& p) const noexcept
     {
         std::size_t result = 0;
-        hash_combine(result, p.x, p.y);
+        hash_combine(result, (int)p.x, (int)p.y);
         return result;
     }
 };

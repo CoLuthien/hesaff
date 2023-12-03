@@ -318,7 +318,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     bool const AlreadyVisited = VisitMap.contains(cv::Point(solution_col, solution_row));
 
     // if spatial localization was all right and the scale is close enough...
-    if (AlreadyVisited | LocalizationTest | ResponseTest | !converged)
+    if (AlreadyVisited | LocalizationTest | ResponseTest)
     {
         return false;
     }

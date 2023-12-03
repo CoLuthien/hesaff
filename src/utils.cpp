@@ -40,9 +40,9 @@ HessianResponse(cv::Mat const& Img, float const Sigma)
     cv::Sobel(Img, Jyy, Img.depth(), 0, 2);
     cv::Sobel(Img, Jxy, Img.depth(), 1, 1);
 
-    auto const norm = std::pow(Sigma, 2);
+    auto const norm = Sigma * Sigma;
 
-    return std::move((Jxx.mul(Jyy) - Jxy.mul(Jxy)) * norm);
+    return norm * (Jxx.mul(Jyy) - Jxy.mul(Jxy));
 }
 
 bool
@@ -168,8 +168,8 @@ ComputeGaussianMask(std::size_t const size)
     }
     cv::Mat Mask(MaskSize, MaskSize, CV_32FC1);
 
-    float sigma  = MaskSize / 6.0f;
-    float sigma2 = -2.0f * std::pow(sigma, 2);
+    float sigma      = MaskSize / 6.0f;
+    float sigma2_inv = 1. / (2.0f * std::pow(sigma, 2));
 
     auto const size_x = Mask.cols;
     auto const size_y = Mask.rows;
@@ -186,15 +186,17 @@ ComputeGaussianMask(std::size_t const size)
             0 1 2 3 4 ... half_x - 1 , half_x, half_x -1 , .... 3, 2, 1, 0
             same for y
             */
-            auto const x = std::abs(std::abs(half_x - row) - half_x);
-            auto const y = std::abs(std::abs(half_y - col) - half_y);
+            auto const x = std::abs(std::abs(half_x - row));
+            auto const y = std::abs(std::abs(half_y - col));
 
-            auto const Numerator      = -(std::pow(x, 2) + std::pow(y, 2));
-            at<float>(Mask, row, col) = std::exp(Numerator / sigma2);
+            auto const Numerator      = (std::pow(x, 2) + std::pow(y, 2));
+            at<float>(Mask, row, col) = std::exp(-Numerator * sigma2_inv);
         }
     }
 
-    Mask /= at<float>(Mask, half_x, half_y);
+    auto const factor = 1. / at<float>(Mask, half_x, half_y);
+
+    Mask *= factor;
 
     return Mask;
 }
