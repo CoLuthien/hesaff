@@ -40,7 +40,7 @@ HessianResponse(cv::Mat const& Img, float const Sigma)
     cv::Sobel(Img, Jyy, Img.depth(), 0, 2);
     cv::Sobel(Img, Jxy, Img.depth(), 1, 1);
 
-    auto const norm = Sigma * Sigma;
+    auto const norm = std::pow(Sigma, 4.);
 
     return norm * (Jxx.mul(Jyy) - Jxy.mul(Jxy));
 }
@@ -154,8 +154,8 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
 void
 ComputeGradient(cv::Mat const& Img, cv::Mat& Gradx, cv::Mat& Grady)
 {
-    cv::Scharr(Img, Gradx, Img.depth(), 1, 0);
-    cv::Scharr(Img, Grady, Img.depth(), 0, 1);
+    cv::Sobel(Img, Gradx, Img.depth(), 1, 0);
+    cv::Sobel(Img, Grady, Img.depth(), 0, 1);
 }
 
 cv::Mat
@@ -252,12 +252,13 @@ IsSampleTouchBorder(cv::Size const  ImgSize,
 cv::Mat
 EstimateStructureTensor(cv::Mat const& Window, cv::Mat const& GradX, cv::Mat const& GradY)
 {
-    auto area = Window.cols * Window.rows;
-    auto a    = cv::sum(GradX.mul(GradX).mul(Window)) / area;
-    auto b    = cv::sum(GradY.mul(GradY).mul(Window)) / area;
-    auto c    = cv::sum(GradX.mul(GradY).mul(Window)) / area;
+    auto area = 1. / Window.cols * Window.rows;
 
-    return (cv::Mat_<double>(2, 2) << a[0], c[0], c[0], b[0]);
+    cv::Scalar_<float> a = cv::sum(GradX.mul(GradX).mul(Window)) * area;
+    cv::Scalar_<float> b = cv::sum(GradY.mul(GradY).mul(Window)) * area;
+    cv::Scalar_<float> c = cv::sum(GradX.mul(GradY).mul(Window)) * area;
+
+    return (cv::Mat_<float>(2, 2) << a[0], c[0], c[0], b[0]);
 }
 
 void

@@ -46,8 +46,9 @@ public:
     std::vector<CandidatePoint> DetectCandidates(HessianResponsePyramid const& Pyr) const;
 
 private:
-    std::vector<CandidatePoint> FindOctaveCandidates(HessianResponsePyramid const& Pyr,
-                                                     std::size_t const             Octave) const;
+    std::vector<CandidatePoint> FindOctaveCandidates(HessianResponsePyramid const&  Pyr,
+                                                     std::size_t const              Octave,
+                                                     std::unordered_set<cv::Point>& VisitMap) const;
     std::vector<CandidatePoint> FindLayerCandidates(HessianResponsePyramid const&  Pyr,
                                                     std::size_t const              Octave,
                                                     std::size_t const              LayerIdx,

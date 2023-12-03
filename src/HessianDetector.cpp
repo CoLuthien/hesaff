@@ -150,11 +150,11 @@ HessianDetector::HessianDetector(int const   nBorders,
 }
 
 std::vector<CandidatePoint>
-HessianDetector::FindOctaveCandidates(HessianResponsePyramid const& Pyr,
-                                      std::size_t const             Octave) const
+HessianDetector::FindOctaveCandidates(HessianResponsePyramid const&  Pyr,
+                                      std::size_t const              Octave,
+                                      std::unordered_set<cv::Point>& VisitMap) const
 {
-    std::vector<CandidatePoint>   Result;
-    std::unordered_set<cv::Point> VisitMap;
+    std::vector<CandidatePoint> Result;
 
     auto const numLayers = Pyr.numLayers() - 1;
 
@@ -192,11 +192,17 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
     auto const LayerDistance = CurrentOctave.PixelDistance;
     auto const LayerCount    = Pyr.numLayers();
 
+    auto const pixelDistance = CurrentOctave.PixelDistance;
+
     for (int r = Border; r < RowIter; ++r)
     {
         auto const* row = Current.ptr<float>(r);
         for (int c = Border; c < ColIter; ++c)
         {
+            if (VisitMap.contains(cv::Point(c * pixelDistance, r * pixelDistance)))
+            {
+                continue;
+            }
 
             auto const value = row[c];
 
@@ -257,7 +263,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     int const Cols = Current.cols;
     int const Rows = Current.rows;
 
-    if (VisitMap.contains(cv::Point(PositionX, PositionY)))
+    if (VisitMap.contains(cv::Point(PositionX * pixelDistance, PositionY * pixelDistance)))
     {
         return false;
     }
@@ -324,13 +330,16 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
     }
 
     // mark we've visited here
-    VisitMap.emplace(cv::Point(solution_col, solution_row));
+    auto x = pixelDistance * (solution_col + shift_ptr[0]);
+    auto y = pixelDistance * (solution_row + shift_ptr[1]);
+
+    VisitMap.emplace(cv::Point(x, y));
 
     float scale = CurSigma * std::pow(2., shift_ptr[2] / NumLayers);
 
     Point = {
-        .x              = pixelDistance * (solution_col + shift_ptr[0]),
-        .y              = pixelDistance * (solution_row + shift_ptr[1]),
+        .x              = x,
+        .y              = y,
         .s              = pixelDistance * scale,
         .response       = Response,
         .pixel_distance = pixelDistance,
@@ -347,9 +356,11 @@ HessianDetector::DetectCandidates(HessianResponsePyramid const& Pyr) const
 {
     std::vector<CandidatePoint> Result;
     auto const                  numOctaves = Pyr.numOctaves();
+
+    std::unordered_set<cv::Point> VisitMap;
     for (int OctaveIdx = 0; OctaveIdx != numOctaves; ++OctaveIdx)
     {
-        auto&& Candidates = FindOctaveCandidates(Pyr, OctaveIdx);
+        auto&& Candidates = FindOctaveCandidates(Pyr, OctaveIdx, VisitMap);
         Result.insert(Result.end(), Candidates.begin(), Candidates.end());
     }
 

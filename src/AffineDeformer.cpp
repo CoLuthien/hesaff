@@ -120,24 +120,23 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
 
     float eigen_ratio_act = 0.0f, eigen_ratio_bef = 0.0f;
 
-    cv::Mat Sample(params.smmWindowSize, params.smmWindowSize, CV_32F);
-    cv::Mat grad_x(params.smmWindowSize, params.smmWindowSize, CV_32F);
-    cv::Mat grad_y(params.smmWindowSize, params.smmWindowSize, CV_32F);
-
     for (int Iter = 0; Iter < params.maxIterations; ++Iter)
     {
+        cv::Mat Sample(params.smmWindowSize, params.smmWindowSize, CV_32F);
+        cv::Mat grad_x;
+        cv::Mat grad_y;
+
         float TempDeform[4] = {u11 * ratio, u12 * ratio, u21 * ratio, u22 * ratio};
         utils::SampleDeformAndInterpolate(Img, {width, height}, TempDeform, Sample);
-
         utils::ComputeGradient(Sample, grad_x, grad_y);
 
         // estimate SMM, second moment matrix
         auto SMM = utils::EstimateStructureTensor(GaussisanMask, grad_x, grad_y);
 
         float a = 0, b = 0, c = 0;
-        a = at<double>(SMM, 0, 0);
-        b = at<double>(SMM, 0, 1);
-        c = at<double>(SMM, 1, 1);
+        a = at<float>(SMM, 0, 0);
+        b = at<float>(SMM, 0, 1);
+        c = at<float>(SMM, 1, 1);
 
         MatrixSqrt(a, b, c, eig_1, eig_2);
 
@@ -209,7 +208,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         // leave +1 border for the bilinear interpolation
         patchImageSize += 2;
         cv::Mat     Sample(patchImageSize, patchImageSize, CV_32F);
-        auto const* DeformMatrix = reinterpret_cast<float*>(Point.AffineDeformation.data);
+        auto const* DeformMatrix = Point.AffineDeformation.ptr<float>();
 
         auto TouchBorder = utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Sample);
         if (TouchBorder == false)
