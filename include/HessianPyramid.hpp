@@ -9,8 +9,8 @@ namespace ha
 struct HessianResponsePyramidParams
 {
 public:
-    int   numOctaves   = 3; // number of half scaled image for octaves
-    int   numLayers    = 3; // amount of gaussian blurred image for each Hessian Octave
+    int   numOctaves   = 3;  // number of half scaled image for octaves
+    int   numLayers    = 3;  // amount of gaussian blurred image for each Hessian Octave
     float initialSigma = 3.; // amount of smoothing applied to the initial level of first octave
 };
 

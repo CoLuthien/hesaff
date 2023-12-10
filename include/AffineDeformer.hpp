@@ -15,9 +15,8 @@ struct HA_API AffineDeformerParams
     int const maxIterations = 16;
 
     // convergence threshold, i.e. maximum deviation from isotropic shape at convergence
-
     // widht and height of the SMM mask
-    int const smmWindowSize = 19;
+    int const smmWindowSize = 31;
 
     // width and height of the patch
     int const patchSize = 41;

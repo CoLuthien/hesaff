@@ -12,7 +12,7 @@ namespace ha
 struct HA_API HessianDetectorParams
 {
 public:
-    HessianDetectorParams(int const   inBorderSize          = 3,
+    HessianDetectorParams(int const   inBorderSize          = 9,
                           float const inThreshold           = 5.3,
                           float const inEdgeEigenValueRatio = 10);
 
