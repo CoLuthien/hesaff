@@ -6,10 +6,10 @@ namespace
 
 template <typename T>
 inline T&
-at(cv::Mat const& Img, int const width, int const Height)
+at(cv::Mat const& Img, int const Row, int const Col)
 {
     auto const* Ptr = Img.data;
-    return ((T*)(Ptr + Img.step[0] * width))[Height];
+    return ((T*)(Ptr + Img.step[0] * Row))[Col];
 }
 
 } // namespace
@@ -48,43 +48,13 @@ HessianResponse(cv::Mat const& Img, float const Sigma)
 bool
 IsRegionMax(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t const Col)
 {
-    bool       result  = true;
-    auto const RowIter = Row + 2;
-    auto const ColIter = Col + 2;
-    for (int r = Row - 1; r != RowIter; ++r)
-    {
-        const float* row = Img.ptr<float>(r);
-        for (int c = Col - 1; c != ColIter; ++c)
-        {
-            if (row[c] > Value)
-            {
-                result = false;
-            }
-        }
-    }
-
-    return result;
+    return (at<float>(Img, Row, Col) > Value) == false;
 }
 
 bool
 IsRegionMin(cv::Mat const& Img, float const Value, std::size_t const Row, std::size_t Col)
 {
-    bool       result  = true;
-    auto const RowIter = Row + 2;
-    auto const ColIter = Col + 2;
-    for (int r = Row - 1; r != RowIter; ++r)
-    {
-        const float* row = Img.ptr<float>(r);
-        for (int c = Col - 1; c != ColIter; ++c)
-        {
-            if (row[c] < Value)
-            {
-                result = false;
-            }
-        }
-    }
-
-    return result;
+    return (at<float>(Img, Row, Col) < Value) == false;
 }
 
 bool
@@ -109,12 +79,22 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
     cv::Mat map_x(Result.size(), CV_32F);
     cv::Mat map_y(Result.size(), CV_32F);
 
-    for (int Row = BottomEnd; Row < TopEnd; ++Row)
+    bool TouchBorder = false;
+
+    for (int Row = BottomEnd; Row < TopEnd + 1; ++Row)
     {
-        for (int Col = LeftEnd; Col < RightEnd; ++Col)
+        for (int Col = LeftEnd; Col < RightEnd + 1; ++Col)
         {
             float rx = center_row + Row * a12 + Col * a11;
             float ry = center_col + Row * a22 + Col * a21;
+
+            auto const x = std::floor(rx);
+            auto const y = std::floor(ry);
+
+            if ((x < 0 or y < 0) or (x > SampleWidth or y > SampleHeight))
+            {
+                TouchBorder = true;
+            }
 
             at<float>(map_x, Row + TopEnd, Col + RightEnd) = rx;
             at<float>(map_y, Row + TopEnd, Col + RightEnd) = ry;
@@ -123,7 +103,8 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
     cv::remap(Img, Result, map_x, map_y, cv::INTER_AREA, cv::BORDER_CONSTANT);
 
     // Check for boundary touch
-    return cv::countNonZero(Result == 0) > 0;
+    // return cv::countNonZero(Result == 0) > 0;
+    return TouchBorder;
 }
 
 void

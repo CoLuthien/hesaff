@@ -160,7 +160,7 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
         {
             return false;
         }
-        auto const* EigPtr = reinterpret_cast<float*>(Eig.data);
+        auto const* EigPtr = Eig.ptr<float>();
 
         eig_1 = EigPtr[0];
         eig_2 = EigPtr[1];
@@ -198,9 +198,6 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
     int const ImgWidth  = Img.cols;
     int const ImgHeight = Img.rows;
 
-    int const SampleWidth  = patchImageSize;
-    int const SampleHeight = patchImageSize;
-
     cv::Point const Center{Point.x_pos, Point.y_pos};
     if (imageToPatchScale > 0.4)
     {
@@ -223,7 +220,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
 
             Result.copyTo(Patch);
 
-            return true;
+            return TouchBorder == false;
         }
         else
         {
@@ -233,7 +230,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
     else
     {
         cv::Mat     Tmp          = Point.AffineDeformation * imageToPatchScale;
-        auto const* DeformMatrix = reinterpret_cast<float*>(Tmp.data);
+        auto const* DeformMatrix = Tmp.ptr<float>();
 
         cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
         utils::SampleDeformAndInterpolate(Img, Center, DeformMatrix, Result);

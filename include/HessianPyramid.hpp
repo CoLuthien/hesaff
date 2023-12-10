@@ -9,9 +9,10 @@ namespace ha
 struct HessianResponsePyramidParams
 {
 public:
-    int   numOctaves   = 3;  // number of half scaled image for octaves
-    int   numLayers    = 3;  // amount of gaussian blurred image for each Hessian Octave
-    float initialSigma = 3.; // amount of smoothing applied to the initial level of first octave
+    int   regionSize   = 5;
+    int   numOctaves   = 3;   // number of half scaled image for octaves
+    int   numLayers    = 3;   // amount of gaussian blurred image for each Hessian Octave
+    float initialSigma = 1.6; // amount of smoothing applied to the initial level of first octave
 };
 
 class HA_API HessianResponseOctave
@@ -19,6 +20,7 @@ class HA_API HessianResponseOctave
 public:
     HessianResponseOctave(cv::Mat const& Image,
                           int const      nLayers,
+                          int const      regionSize,
                           float const    inPixelDist,
                           float const    InitialSigma,
                           float const    SigmaStep);
@@ -26,6 +28,8 @@ public:
 public:
     cv::Mat const& operator[](std::size_t Idx) const { return m_layers[Idx]; }
     cv::Mat const& GetLayerBlur(std::size_t Idx) const { return m_blurs[Idx]; }
+    cv::Mat const& GetLayerErd(std::size_t Idx) const { return m_erodes[Idx]; }
+    cv::Mat const& GetLayerDil(std::size_t Idx) const { return m_dilates[Idx]; }
     float const    GetLayerSigma(std::size_t Idx) const { return m_sigmas[Idx]; }
 
 public:
@@ -35,6 +39,8 @@ public:
 public:
     std::vector<float>   m_sigmas;
     std::vector<cv::Mat> m_blurs;
+    std::vector<cv::Mat> m_erodes;
+    std::vector<cv::Mat> m_dilates;
     std::vector<cv::Mat> m_layers;
 };
 

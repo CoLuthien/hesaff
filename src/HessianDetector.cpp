@@ -194,6 +194,14 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
 
     auto const pixelDistance = CurrentOctave.PixelDistance;
 
+    auto const& PrevDil = CurrentOctave.GetLayerDil(LayerIdx - 1);
+    auto const& CurDil  = CurrentOctave.GetLayerDil(LayerIdx);
+    auto const& NextDil = CurrentOctave.GetLayerDil(LayerIdx + 1);
+
+    auto const& PrevErd = CurrentOctave.GetLayerErd(LayerIdx - 1);
+    auto const& CurErd  = CurrentOctave.GetLayerErd(LayerIdx);
+    auto const& NextErd = CurrentOctave.GetLayerErd(LayerIdx + 1);
+
     for (int r = Border; r < RowIter; ++r)
     {
         auto const* row = Current.ptr<float>(r);
@@ -209,13 +217,13 @@ HessianDetector::FindLayerCandidates(HessianResponsePyramid const&  Pyr,
             bool const BeyondPositiveThreshold = (value > param_detect.positiveThreshold);
             bool const BeyondNegativeThreshold = (value < param_detect.negativeThreshold);
 
-            bool const IsRegionalMaximum = utils::IsRegionMax(Prev, value, r, c) &
-                                           utils::IsRegionMax(Current, value, r, c) &
-                                           utils::IsRegionMax(Next, value, r, c);
+            bool const IsRegionalMaximum = utils::IsRegionMax(PrevDil, value, r, c) &
+                                           utils::IsRegionMax(CurDil, value, r, c) &
+                                           utils::IsRegionMax(NextDil, value, r, c);
 
-            bool const IsRegionalMinimum = utils::IsRegionMin(Prev, value, r, c) &
-                                           utils::IsRegionMin(Current, value, r, c) &
-                                           utils::IsRegionMin(Next, value, r, c);
+            bool const IsRegionalMinimum = utils::IsRegionMin(PrevErd, value, r, c) &
+                                           utils::IsRegionMin(CurErd, value, r, c) &
+                                           utils::IsRegionMin(NextErd, value, r, c);
 
             if ((BeyondPositiveThreshold & IsRegionalMaximum) |
                 (BeyondNegativeThreshold & IsRegionalMinimum))
@@ -300,7 +308,7 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
         solution_col = c;
         Response     = value;
 
-        auto const* solution_ptr = reinterpret_cast<float*>(Solution.data);
+        auto const* solution_ptr = Solution.ptr<float>();
 
         if (!TryUpdatePosition(solution_ptr[0], c, NextCol, Cols) |
             !TryUpdatePosition(solution_ptr[1], r, NextRow, Rows))
@@ -316,12 +324,13 @@ HessianDetector::LocalizeCandidate(CandidatePoint&                Point,
             break;
         }
     }
-    auto const* shift_ptr        = reinterpret_cast<float*>(pixel_shift.data);
+    auto const* shift_ptr        = pixel_shift.ptr<float>();
     bool const  LocalizationTest = std::abs(shift_ptr[0]) > ScaleThreshold ||
                                   std::abs(shift_ptr[1]) > ScaleThreshold ||
                                   std::abs(shift_ptr[2]) > ScaleThreshold;
-    bool const ResponseTest   = std::abs(Response) < param_detect.finalThreshold;
-    bool const AlreadyVisited = VisitMap.contains(cv::Point(solution_col, solution_row));
+    bool const ResponseTest = std::abs(Response) < param_detect.finalThreshold;
+    bool const AlreadyVisited =
+        VisitMap.contains(cv::Point(solution_col * pixelDistance, solution_row * pixelDistance));
 
     // if spatial localization was all right and the scale is close enough...
     if (AlreadyVisited | LocalizationTest | ResponseTest)
