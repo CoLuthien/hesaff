@@ -102,8 +102,6 @@ SampleDeformAndInterpolate(cv::Mat const&    Img,
     }
     cv::remap(Img, Result, map_x, map_y, cv::INTER_AREA, cv::BORDER_CONSTANT);
 
-    // Check for boundary touch
-    // return cv::countNonZero(Result == 0) > 0;
     return TouchBorder;
 }
 

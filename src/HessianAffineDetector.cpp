@@ -46,7 +46,6 @@ HessianAffineDetector::detectKeypoints(cv::Mat const& Img, cv::Mat const& Mask) 
             m_deformer->FindAffineDeformation(Pyr, Point, Point.AffineDeformation);
         if (DeformationFound)
         {
-            utils::RetifyAffineDeformation(Point.AffineDeformation);
             bool PatchExtracted =
                 m_deformer->ExtractAndNormalizeAffinePatch(Pyr, Point, Point.Patch);
             if (PatchExtracted)
@@ -70,7 +69,7 @@ HessianAffineDetector::CalculateDescriptors(std::vector<CandidatePoint> const& c
         auto const x = (float)Point.Patch.cols / 2;
         auto const y = (float)Point.Patch.rows / 2;
 
-        auto const patch_radius = std::sqrt(2 * x * x) / 2;
+        auto const patch_radius = x;
 
         std::vector Location{
             cv::KeyPoint{x, y, patch_radius, Point.orientation, Point.response},
@@ -80,7 +79,7 @@ HessianAffineDetector::CalculateDescriptors(std::vector<CandidatePoint> const& c
         Descs.emplace_back(std::move(Desc));
 
         keypoints.emplace_back(
-            cv::KeyPoint(Point.x, Point.y, patch_radius, Point.orientation, Point.response));
+            cv::KeyPoint(Point.x, Point.y, 2 * Point.s + 1, Point.orientation, Point.response));
     }
 
     cv::vconcat(Descs, descriptors);

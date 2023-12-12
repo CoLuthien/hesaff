@@ -115,8 +115,7 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
     int const width  = Point.x_pos;
     int const height = Point.y_pos;
 
-    float const ratio      = Point.s / (params.initialSigma * Point.pixel_distance);
-    int const   maskPixels = params.smmWindowSize * params.smmWindowSize;
+    float const ratio = Point.s / (params.initialSigma * Point.pixel_distance);
 
     float eigen_ratio_act = 0.0f, eigen_ratio_bef = 0.0f;
 
@@ -138,10 +137,11 @@ AffineDeformer::FindAffineDeformation(HessianResponsePyramid const& Pyr,
         b = at<float>(SMM, 0, 1);
         c = at<float>(SMM, 1, 1);
 
-        MatrixSqrt(a, b, c, eig_1, eig_2);
+        float Eig1, Eig2;
+        MatrixSqrt(a, b, c, Eig1, Eig2);
 
         eigen_ratio_bef = eigen_ratio_act;
-        eigen_ratio_act = 1 - eig_2 / eig_1;
+        eigen_ratio_act = 1 - Eig2 / Eig1;
 
         float u11t = u11, u12t = u12;
 
@@ -192,7 +192,7 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
     // half patch size in pixels of image
     float mrScale = std::ceil(Point.s * params.mrSize);
 
-    int   patchImageSize    = 2 * int(mrScale) + 1; // odd size
+    int   patchImageSize    = 2 * std::ceil(mrScale) + 1; // odd size
     float imageToPatchScale = (float)patchImageSize / params.patchSize;
 
     int const ImgWidth  = Img.cols;
@@ -212,14 +212,13 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         {
             cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
 
-            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 3 * imageToPatchScale);
+            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
             float const Deform[4] = {imageToPatchScale, 0, 0, imageToPatchScale};
 
             TouchBorder = utils::SampleDeformAndInterpolate(
                 Blur, {patchImageSize / 2, patchImageSize / 2}, Deform, Result);
 
             Result.copyTo(Patch);
-
             return TouchBorder == false;
         }
         else
