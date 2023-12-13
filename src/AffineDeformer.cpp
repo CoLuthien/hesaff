@@ -212,7 +212,9 @@ AffineDeformer::ExtractAndNormalizeAffinePatch(HessianResponsePyramid const& Pyr
         {
             cv::Mat Result(params.patchSize, params.patchSize, CV_32F);
 
-            auto&&      Blur = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
+            // auto&& Blur = utils::GaussianBlurRelativeKernel(Sample, 1.5 * imageToPatchScale);
+
+            auto&& Blur = utils::KuwaharaFilter(Sample, static_cast<int>(3 * imageToPatchScale));
             float const Deform[4] = {imageToPatchScale, 0, 0, imageToPatchScale};
 
             TouchBorder = utils::SampleDeformAndInterpolate(

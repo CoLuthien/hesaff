@@ -19,6 +19,7 @@ HessianResponseOctave::HessianResponseOctave(cv::Mat const& Image,
 {
     auto       CurSigma = InitialSigma;
     auto const Step     = SigmaStep;
+    m_blurs.emplace_back(Image);
 
     for (int Layer = 0; Layer < nLayers; ++Layer)
     {
@@ -43,7 +44,7 @@ HessianResponseOctave::HessianResponseOctave(cv::Mat const& Image,
         m_erodes.emplace_back(std::move(Erd));
         m_dilates.emplace_back(std::move(Dil));
         m_layers.emplace_back(std::move(Current));
-        m_blurs.emplace_back(std::move(NextBlur));
+        //m_blurs.emplace_back(std::move(NextBlur));
         CurSigma *= Step;
     }
 }

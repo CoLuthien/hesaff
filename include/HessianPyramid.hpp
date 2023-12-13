@@ -9,10 +9,10 @@ namespace ha
 struct HessianResponsePyramidParams
 {
 public:
-    int   regionSize   = 5;
-    int   numOctaves   = 3;   // number of half scaled image for octaves
-    int   numLayers    = 3;   // amount of gaussian blurred image for each Hessian Octave
-    float initialSigma = 1.6; // amount of smoothing applied to the initial level of first octave
+    int   regionSize   = 7;
+    int   numOctaves   = 3; // number of half scaled image for octaves
+    int   numLayers    = 3; // amount of gaussian blurred image for each Hessian Octave
+    float initialSigma = 4; // amount of smoothing applied to the initial level of first octave
 };
 
 class HA_API HessianResponseOctave
@@ -27,7 +27,7 @@ public:
 
 public:
     cv::Mat const& operator[](std::size_t Idx) const { return m_layers[Idx]; }
-    cv::Mat const& GetLayerBlur(std::size_t Idx) const { return m_blurs[Idx]; }
+    cv::Mat const& GetLayerBlur(std::size_t Idx) const { return m_blurs[0]; }
     cv::Mat const& GetLayerErd(std::size_t Idx) const { return m_erodes[Idx]; }
     cv::Mat const& GetLayerDil(std::size_t Idx) const { return m_dilates[Idx]; }
     float const    GetLayerSigma(std::size_t Idx) const { return m_sigmas[Idx]; }

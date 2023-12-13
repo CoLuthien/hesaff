@@ -16,6 +16,107 @@ at(cv::Mat const& Img, int const Row, int const Col)
 
 namespace utils
 {
+
+cv::Mat
+KuwaharaFilter(cv::Mat const& Img, int m)
+{
+    int quadrants_size = std::clamp(m / 2, 3, m);
+
+    static constexpr auto c1 = [](int x, int y, int quad_size, int x_max, int y_max) {
+        auto const offset = (quad_size / 2) + 1;
+
+        int px = std::clamp(x - offset, 0, x_max - quad_size);
+        int py = std::clamp(y - offset, 0, y_max - quad_size);
+        return cv::Point{px, py};
+    };
+    static constexpr auto c2 = [](int x, int y, int quad_size, int x_max, int y_max) {
+        auto const offset = (quad_size / 2) + 1;
+
+        int px = std::clamp(x, 0, x_max - quad_size);
+        int py = std::clamp(y - offset, 0, y_max - quad_size);
+        return cv::Point{px, py};
+    };
+    static constexpr auto c3 = [](int x, int y, int quad_size, int x_max, int y_max) {
+        auto const offset = (quad_size / 2) + 1;
+
+        int px = std::clamp(x - offset, 0, x_max - quad_size);
+        int py = std::clamp(y, 0, y_max - quad_size);
+        return cv::Point{px, py};
+    };
+    static constexpr auto c4 = [](int x, int y, int quad_size, int x_max, int y_max) {
+        int px = std::clamp(x, 0, x_max - quad_size);
+        int py = std::clamp(y, 0, y_max - quad_size);
+        return cv::Point{px, py};
+    };
+
+    std::unordered_map<cv::Rect, std::pair<double, double>> calculated;
+
+    cv::Size quad_size{quadrants_size, quadrants_size};
+
+    static constexpr auto mean_and_std =
+        [](cv::Mat const& Img, cv::Rect ROI, decltype(calculated)& map) {
+            if (map.contains(ROI))
+            {
+                return map[ROI];
+            }
+            else
+            {
+                auto&&  Mat  = Img(ROI);
+                auto    mean = cv::mean(Mat);
+                cv::Mat deviation;
+                cv::pow(Mat - mean, 2, deviation);
+                auto factor = 1. / Mat.total();
+                deviation *= factor;
+
+                auto stddev = std::sqrt(cv::sum(deviation)[0]);
+
+                map.emplace(ROI, std::make_pair(mean[0], stddev));
+
+                return std::make_pair(mean[0], stddev);
+            }
+        };
+
+    auto const rows        = Img.rows;
+    auto const cols        = Img.cols;
+    auto const target_rows = Img.rows - quadrants_size;
+    auto const target_cols = Img.cols - quadrants_size;
+
+    cv::Mat Result(Img.size(), CV_32F, 0.);
+    calculated.reserve(Img.total());
+
+    for (int y = 0; y < rows; ++y)
+    {
+        auto* values = Result.ptr<float>(y);
+        for (int x = 0; x < cols; ++x)
+        {
+            cv::Rect r1{c1(x, y, quadrants_size, cols, rows), quad_size};
+
+            auto [m1, s1] = mean_and_std(Img, r1, calculated);
+
+            cv::Rect r2{c2(x, y, quadrants_size, cols, rows), quad_size};
+
+            auto [m2, s2] = mean_and_std(Img, r2, calculated);
+
+            cv::Rect r3{c3(x, y, quadrants_size, cols, rows), quad_size};
+
+            auto [m3, s3] = mean_and_std(Img, r3, calculated);
+
+            cv::Rect r4{c4(x, y, quadrants_size, cols, rows), quad_size};
+
+            auto [m4, s4] = mean_and_std(Img, r4, calculated);
+
+            std::array sigmas{s1, s2, s3, s4};
+            std::array means{m1, m2, m3, m4};
+
+            auto Idx =
+                std::distance(sigmas.begin(), std::min_element(sigmas.begin(), sigmas.end()));
+
+            values[x] = means[Idx];
+        }
+    }
+    return Result.clone();
+}
+
 cv::Mat
 GaussianBlurRelativeKernel(cv::Mat const& Img, float const Sigma)
 {

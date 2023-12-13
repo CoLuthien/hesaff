@@ -30,12 +30,26 @@ struct hash<cv::Point>
     }
 };
 
+template <>
+struct hash<cv::Rect>
+{
+    std::size_t operator()(cv::Rect const& p) const noexcept
+    {
+        std::size_t result = 0;
+        hash_combine(result, p.x, p.y, p.width, p.height);
+        return result;
+    }
+};
+
 } // namespace std
 
 namespace utils
 {
 HA_API
 cv::Mat GaussianBlurRelativeKernel(cv::Mat const& Img, float const Sigma);
+
+HA_API
+cv::Mat KuwaharaFilter(cv::Mat const& Img, int m);
 
 HA_API cv::Mat HessianResponse(cv::Mat const& Img, float const Sigma);
 
